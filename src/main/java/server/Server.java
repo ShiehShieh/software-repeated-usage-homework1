@@ -1,8 +1,12 @@
 package server;
 
-import com.sun.glass.ui.SystemClipboard;
-import com.sun.tools.javac.comp.Check;
+import org.json.JSONException;
+import org.json.JSONObject;
+import utils.IOLog;
+import utils.Message;
+import utils.Pair;
 
+import javax.json.Json;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -23,26 +27,24 @@ import java.util.Calendar;
  */
 public class Server extends ServerSocket {
 
-    private int valid_login_per_min = 0;
-    private int invalid_login_per_min = 0;
-    private int received_msg = 0;
-    private int ignored_msg = 0;
-    private int forwarded_msg = 0;
-    private Timer loginTimer;
+    private static int valid_login_per_min = 0;
+    private static int invalid_login_per_min = 0;
+    private static int received_msg = 0;
+    private static int ignored_msg = 0;
+    private static int forwarded_msg = 0;
     private static Object threadLock = new Object();
     private static Object loginLock = new Object();
     private static Object msgLock = new Object();
     private static Object forwardLock = new Object();
-    private IOLog ioLog;
+    private static IOLog ioLog = new IOLog("server.log", true);
+    private Timer loginTimer;
 
     private static final int SERVER_PORT = 2095;
 
     private static List user_list = new ArrayList();//登录用户集合
     private static List<ServerThread> thread_list = new ArrayList<ServerThread>();//服务器已启用线程集合
-    private static LinkedList<Pair<Long, String> > msg_list = new LinkedList<Pair<Long, String> >();//存放消息队列
-    private Connection conn;
-    private String dbuser = "root";
-    private String dbpw = "root";
+    private static LinkedList<Message> msg_list = new LinkedList<Message>();//存放消息队列
+    private static DataSource dataSource;
 
     /**
      * 创建服务端Socket,创建向客户端发送消息线程,监听客户端请求并处理
@@ -51,24 +53,12 @@ public class Server extends ServerSocket {
         super(SERVER_PORT);//创建ServerSocket
         new PrintOutThread();//创建向客户端发送消息线程
 
-        try{
-            //加载MySql的驱动类
-            Class.forName("com.mysql.jdbc.Driver") ;
-        } catch(Exception e){
-            System.out.println("找不到驱动程序类 ，加载驱动失败！");
-            e.printStackTrace() ;
-        }
+        dataSource = new DataSource();
+    }
 
-        try {
-            conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/reusable",dbuser,dbpw);
-        } catch (Exception e) {
-            System.out.println("Connection error.");
-            e.printStackTrace() ;
-        }
-
+    public void run() throws IOException {
         loginTimer = new Timer();
         loginTimer.schedule(new CheckLoginCount(), 0, 60000);
-        ioLog = new IOLog("server.log", true);
 
         try {
             while(true){//监听客户端请求，启个线程处理
@@ -79,32 +69,6 @@ public class Server extends ServerSocket {
         }finally{
             close();
         }
-
-        try {
-            conn.close();
-        } catch (Exception e) {
-            ;
-        }
-    }
-
-    public String getPassword(String username) {
-        String password = "rootpassword";
-        String sql = "select password from tb_user where username = ?";
-        ResultSet rs;
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(sql);
-            ps.setString(1, username);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                password = rs.getString(1);
-            }
-            rs.close();
-            ps.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return password;
     }
 
     /**
@@ -122,28 +86,29 @@ public class Server extends ServerSocket {
                 // System.out.println(message_list.size());
                 try {
                     sleep(100);
-                } catch (Exception e) {
-                    ;
-                }
-                synchronized(msg_list) {
-                    if (msg_list.size() > 0) {//将缓存在队列中的消息按顺序发送到各客户端，并从队列中清除。
-                        Pair<Long, String> message = msg_list.getFirst();
-                        for (ServerThread thread : thread_list) {
-                            if (thread.getId() != message.getL()) {
-                                thread.sendMessage(message.getR());
-                                synchronized (forwardLock) {
-                                    ++forwarded_msg;
+                    synchronized (msg_list) {
+                        if (msg_list.size() > 0) {//将缓存在队列中的消息按顺序发送到各客户端，并从队列中清除。
+                            Message msg = msg_list.getFirst();
+                            for (ServerThread thread : thread_list) {
+                                if (msg.getValue("target").equals("all") ||
+                                        (msg.getValue("target").equals("others") && msg.getOwner() != thread.getId()) ||
+                                        (msg.getValue("target").equals("itself") && msg.getOwner() == thread.getId())) {
+                                    thread.sendMessage(msg.toString());
+                                    synchronized (forwardLock) {
+                                        ++forwarded_msg;
+                                    }
                                 }
                             }
+                            msg_list.removeFirst();
                         }
-                        msg_list.removeFirst();
                     }
+                } catch (Exception e) {
                 }
             }
         }
     }
 
-    class CheckLoginCount extends TimerTask {
+    static class CheckLoginCount extends TimerTask {
         public void run() {
             String res;
             res = new SimpleDateFormat("yyyyMMdd_HHmmss: ").format(Calendar.getInstance().getTime());
@@ -169,7 +134,7 @@ public class Server extends ServerSocket {
     /**
      * 服务器线程类
      */
-    class ServerThread extends Thread {
+    static class ServerThread extends Thread {
         private Socket client;
         private PrintWriter out;
         private BufferedReader in;
@@ -178,13 +143,18 @@ public class Server extends ServerSocket {
         private int num_message = 0;
         private int msg_in_second = 0;
         private int MAX_MESSAGE_PER_SECOND = 5;
-        private int MAX_MESSAGE_FOR_TOTAL = 100;
+        private int MAX_MESSAGE_FOR_TOTAL = 10;
         private Timer timer;
 
         class CheckMessageCount extends TimerTask {
             public void run() {
                 msg_in_second = 0;
             }
+        }
+
+        public ServerThread() {
+            timer = new Timer();
+            return;
         }
 
         public ServerThread(Socket s)throws IOException {
@@ -195,39 +165,36 @@ public class Server extends ServerSocket {
             start();
         }
 
-        public void login()throws IOException {
-            int i;
+        public void login(BufferedReader in, PrintWriter out, DataSource dataSource)throws IOException {
             String line;
-            String[] parts;
+            Message msg;
 
             while(true) {
-                out.println("Login");
-                for (i = 0; i < 2; ++i) {
+                try {
+                    msg = new Message("{}", this.getId());
+                    msg.setValue("event", "login");
+                    out.println(msg);
                     line = in.readLine();
-                    parts = line.split(":");
-                    if (parts.length == 2) {
-                        if (parts[0].equals("username")) {
-                            username = parts[1];
-                        } else if (parts[0].equals("password")) {
-                            password = parts[1];
+                    msg = new Message(line, this.getId());
+                    username = msg.getValue("username");
+                    password = msg.getValue("password");
+                    synchronized (loginLock) {
+                        if (password.equals(dataSource.getPassword(username))) {
+                            ++valid_login_per_min;
+                            msg.setValue("event", "valid");
+                            out.println(msg);
+                            break;
+                        } else {
+                            ++invalid_login_per_min;
+                            msg.setValue("event", "invalid");
+                            out.println(msg);
                         }
                     }
-                }
-                if (username.equals("") || password.equals("")) {
+                } catch (JSONException e) {
                     continue;
-                }
-                synchronized (loginLock) {
-                    if (password.equals(getPassword(username))) {
-                        ++valid_login_per_min;
-                        break;
-                    } else {
-                        ++invalid_login_per_min;
-                        out.println("Incorrect password");
-                    }
                 }
             }
 
-            out.println("成功连上聊天室:");
             num_message = 0;
             msg_in_second = 0;
             timer.schedule(new CheckMessageCount(), 0, 1000);
@@ -238,13 +205,16 @@ public class Server extends ServerSocket {
         @Override
         public void run() {
             try {
-                login();
+                login(in, out, dataSource);
+                Message msg = new Message("{}", this.getId());
+                msg.setValue("username", username);
+                msg.setValue("target", "others");
 
                 synchronized(threadLock) {
                     user_list.add(username);
                     thread_list.add(this);
-                    out.println(username + "你好,可以开始聊天了...");
-                    this.pushMessage("Client<" + username + ">进入聊天室...");
+                    msg.setValue("event", "logedin");
+                    this.pushMessage(msg);
                 }
 
                 String line = in.readLine();
@@ -255,7 +225,10 @@ public class Server extends ServerSocket {
                     } else {
                         synchronized (msgLock) {
                             if (msg_in_second <= MAX_MESSAGE_PER_SECOND) {
-                                pushMessage("Client<" + username + "> say : " + line);
+                                msg.setValue("event", "message");
+                                msg.setValue("target", "others");
+                                msg.setValue("msg", line);
+                                pushMessage(msg);
                                 ++num_message;
                                 ++msg_in_second;
                                 ++received_msg;
@@ -264,13 +237,15 @@ public class Server extends ServerSocket {
                             }
                         }
                         if (num_message == MAX_MESSAGE_FOR_TOTAL) {
-                            out.println("Redo login");
-                            login();
+                            out.println(new Message("{'event':'relogin','target':'itself'}", this.getId()));
+                            login(in, out, dataSource);
                         }
                     }
                     line = in.readLine();
                 }
-                out.println("quit");
+                msg.setValue("target", "all");
+                msg.setValue("event", "quit");
+                pushMessage(msg);
             } catch (Exception e) {
                 e.printStackTrace();
             } finally { //用户退出聊天室
@@ -284,14 +259,13 @@ public class Server extends ServerSocket {
                     thread_list.remove(this);
                     user_list.remove(username);
                 }
-                pushMessage("Client<" + username +">退出了聊天室");
             }
         }
 
         //放入消息队列末尾，准备发送给客户端
-        private void pushMessage(String msg){
+        private void pushMessage(Message msg){
             synchronized(msg_list) {
-                msg_list.addLast(new Pair<Long, String>(this.getId(), msg));
+                msg_list.addLast(msg);
             }
         }
 
@@ -312,19 +286,8 @@ public class Server extends ServerSocket {
     }
 
     public static void main(String[] args)throws IOException {
-        new Server();//启动服务端
+        Server server = new Server();//启动服务端
+        server.run();
     }
 }
 
-class Pair<L,R> {
-    private L l;
-    private R r;
-    public Pair(L l, R r){
-        this.l = l;
-        this.r = r;
-    }
-    public L getL(){ return l; }
-    public R getR(){ return r; }
-    public void setL(L l){ this.l = l; }
-    public void setR(R r){ this.r = r; }
-}

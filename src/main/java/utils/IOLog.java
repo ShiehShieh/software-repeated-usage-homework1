@@ -1,12 +1,7 @@
-package server;
+package utils;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class IOLog{
 	private String logAddr = ""; 
