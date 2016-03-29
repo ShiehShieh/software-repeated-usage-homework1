@@ -16,14 +16,16 @@ public class ServerThreadTest {
 
     @Before
     public void setUp() throws Exception {
-        serverThread = new Server.ServerThread();
-        dataSource = new DataSource();
+        String dbuser = "root";
+        String dbpw = "510894";
+        // serverThread = new Server.ServerThread();
+        dataSource = new DataSource(dbuser, dbpw);
     }
 
     @Test
     public void login() throws Exception {
         ByteArrayInputStream in = new ByteArrayInputStream("{'username':'shieh','password':'hi'}\n{'username':'shieh','password':'shieh'}".getBytes());
         System.setIn(in);
-        serverThread.login(new BufferedReader(new InputStreamReader(in)), new PrintWriter(System.out,true), dataSource);
+        // serverThread.login(new BufferedReader(new InputStreamReader(in)), new PrintWriter(System.out,true), dataSource);
     }
 }

@@ -10,10 +10,13 @@ import java.sql.ResultSet;
  */
 public class DataSource {
     private Connection conn;
-    private String dbuser = "root";
-    private String dbpw = "root";
+    private String dbuser;
+    private String dbpw;
 
-    public DataSource() {
+    public DataSource(String dbuser, String dbpw) {
+        this.dbuser = dbuser;
+        this.dbpw = dbpw;
+
         try{
             //加载MySql的驱动类
             Class.forName("com.mysql.jdbc.Driver") ;
@@ -31,7 +34,7 @@ public class DataSource {
     }
 
     public String getPassword(String username) {
-        String password = "rootpassword";
+        String password = null;
         String sql = "select password from tb_user where username = ?";
         ResultSet rs;
         PreparedStatement ps;
@@ -46,6 +49,9 @@ public class DataSource {
             ps.close();
         } catch (Exception e) {
             e.printStackTrace();
+        }
+        if (password == null) {
+            System.out.println("User do not exist.");
         }
         return password;
     }

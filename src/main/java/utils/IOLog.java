@@ -2,6 +2,8 @@ package utils;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 public class IOLog{
 	private String logAddr = ""; 
@@ -18,8 +20,10 @@ public class IOLog{
 	}
 
 	public void IOWrite(String sWriten){
+		String res;
+		res = new SimpleDateFormat("yyyyMMdd_HHmmss: ").format(Calendar.getInstance().getTime());
 		try {
-			logFile.write(sWriten);
+			logFile.write(res+sWriten);
 			logFile.flush();
 			System.out.println("OK");
 		} catch (IOException e) {

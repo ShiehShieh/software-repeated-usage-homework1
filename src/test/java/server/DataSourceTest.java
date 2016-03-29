@@ -14,11 +14,16 @@ public class DataSourceTest {
 
     @Before
     public void setUp() throws Exception {
-        dataSource = new DataSource();
+        String dbuser = "root";
+        String dbpw = "510894";
+        dataSource = new DataSource(dbuser, dbpw);
     }
 
     @Test
     public void getPassword() throws Exception {
         System.out.println(dataSource.getPassword("shieh"));
+        System.out.println(dataSource.getPassword("hi"));
+        System.out.println(dataSource.getPassword("no"));
+        System.out.println("sadf".equals(dataSource.getPassword("no")));
     }
 }

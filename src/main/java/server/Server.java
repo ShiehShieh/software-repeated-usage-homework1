@@ -1,8 +1,8 @@
 package server;
 
+import com.sun.tools.javac.comp.Check;
 import org.json.JSONException;
-import utils.IOLog;
-import utils.Message;
+import utils.*;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -10,46 +10,57 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Timer;
 
 /**
  * Created by shieh on 3/20/16.
  */
 public class Server extends ServerSocket {
-
-    private static int valid_login_per_min = 0;
-    private static int invalid_login_per_min = 0;
-    private static int received_msg = 0;
-    private static int ignored_msg = 0;
-    private static int forwarded_msg = 0;
     private static Object threadLock = new Object();
-    private static Object loginLock = new Object();
-    private static Object msgLock = new Object();
-    private static Object forwardLock = new Object();
-    private static IOLog ioLog = new IOLog("server.log", true);
     private Timer loginTimer;
-
-    private static final int SERVER_PORT = 2095;
+    private boolean withLog = false;
+    private String logFile;
 
     private static List user_list = new ArrayList();//登录用户集合
     private static List<ServerThread> thread_list = new ArrayList<ServerThread>();//服务器已启用线程集合
     private static LinkedList<Message> msg_list = new LinkedList<Message>();//存放消息队列
     private static DataSource dataSource;
 
+    private CheckCount checkCount;
+
+    public String valid_login_per_min = "valid login per min: ";
+    public String invalid_login_per_min = "invalid login per min: ";
+    public String received_msg = "received message: ";
+    public String ignored_msg = "ignored message: ";
+    public String forwarded_msg = "forwarded message: ";
+
     /**
      * 创建服务端Socket,创建向客户端发送消息线程,监听客户端请求并处理
      */
-    public Server()throws IOException {
+    public Server(int SERVER_PORT, String logFilename, String dbuser, String dbpw, boolean withLog)throws IOException {
         super(SERVER_PORT);//创建ServerSocket
         new PrintOutThread();//创建向客户端发送消息线程
+        this.logFile = logFilename;
+        this.withLog = withLog;
 
-        dataSource = new DataSource();
+        dataSource = new DataSource(dbuser, dbpw);
     }
 
     public void run() throws IOException {
-        loginTimer = new Timer();
-        loginTimer.schedule(new CheckLoginCount(), 0, 60000);
+        if (withLog) {
+            System.out.println("Logging into " + this.logFile);
+            checkCount = new CheckCount(this.logFile);
+            checkCount.addCountType(valid_login_per_min);
+            checkCount.addCountType(invalid_login_per_min);
+            checkCount.addCountType(received_msg);
+            checkCount.addCountType(ignored_msg);
+            checkCount.addCountType(forwarded_msg);
+            loginTimer = new Timer();
+            loginTimer.schedule(checkCount, 0, 60000);
+        }
 
         try {
             while(true){//监听客户端请求，启个线程处理
@@ -85,8 +96,8 @@ public class Server extends ServerSocket {
                                         (msg.getValue("target").equals("others") && msg.getOwner() != thread.getId()) ||
                                         (msg.getValue("target").equals("itself") && msg.getOwner() == thread.getId())) {
                                     thread.sendMessage(msg.toString());
-                                    synchronized (forwardLock) {
-                                        ++forwarded_msg;
+                                    synchronized (checkCount.getLock(forwarded_msg)) {
+                                        checkCount.addCount(forwarded_msg);
                                     }
                                 }
                             }
@@ -99,49 +110,20 @@ public class Server extends ServerSocket {
         }
     }
 
-    static class CheckLoginCount extends TimerTask {
-        public void run() {
-            String res;
-            res = new SimpleDateFormat("yyyyMMdd_HHmmss: ").format(Calendar.getInstance().getTime());
-            ioLog.IOWrite(res + "valid login per min: " + valid_login_per_min + "\n");
-            ioLog.IOWrite(res + "invalid login per min: " + invalid_login_per_min + "\n");
-            ioLog.IOWrite(res + "received message: " + received_msg + "\n");
-            ioLog.IOWrite(res + "ignored message: " + ignored_msg + "\n");
-            ioLog.IOWrite(res + "forwarded message: " + forwarded_msg + "\n");
-            synchronized (loginLock) {
-                valid_login_per_min = 0;
-                invalid_login_per_min = 0;
-            }
-            synchronized (msgLock) {
-                received_msg = 0;
-                ignored_msg = 0;
-            }
-            synchronized (forwardLock) {
-                forwarded_msg = 0;
-            }
-        }
-    }
-
     /**
      * 服务器线程类
      */
-    static class ServerThread extends Thread {
+    class ServerThread extends Thread {
         private Socket client;
         private PrintWriter out;
         private BufferedReader in;
         private String username = "";
         private String password = "";
-        private int num_message = 0;
-        private int msg_in_second = 0;
         private int MAX_MESSAGE_PER_SECOND = 5;
         private int MAX_MESSAGE_FOR_TOTAL = 10;
         private Timer timer;
-
-        class CheckMessageCount extends TimerTask {
-            public void run() {
-                msg_in_second = 0;
-            }
-        }
+        private Verification verification;
+        private MessageCount messageCount;
 
         public ServerThread() {
             timer = new Timer();
@@ -153,50 +135,20 @@ public class Server extends ServerSocket {
             this.client = s;
             out = new PrintWriter(client.getOutputStream(),true);
             in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+            verification = new Verification();
+            messageCount = new MessageCount();
             start();
-        }
-
-        public void login(BufferedReader in, PrintWriter out, DataSource dataSource)throws IOException {
-            String line;
-            Message msg;
-
-            while(true) {
-                try {
-                    msg = new Message("{}", this.getId());
-                    msg.setValue("event", "login");
-                    out.println(msg);
-                    line = in.readLine();
-                    msg = new Message(line, this.getId());
-                    username = msg.getValue("username");
-                    password = msg.getValue("password");
-                    synchronized (loginLock) {
-                        if (password.equals(dataSource.getPassword(username))) {
-                            ++valid_login_per_min;
-                            msg.setValue("event", "valid");
-                            out.println(msg);
-                            break;
-                        } else {
-                            ++invalid_login_per_min;
-                            msg.setValue("event", "invalid");
-                            out.println(msg);
-                        }
-                    }
-                } catch (JSONException e) {
-                    continue;
-                }
-            }
-
-            num_message = 0;
-            msg_in_second = 0;
-            timer.schedule(new CheckMessageCount(), 0, 1000);
-
-            return;
         }
 
         @Override
         public void run() {
             try {
-                login(in, out, dataSource);
+                verification.login(in, out, dataSource, checkCount, valid_login_per_min,invalid_login_per_min, this.getId());
+                username = verification.getUsername();
+                password = verification.getPassword();
+                messageCount.reset();
+                timer.schedule(messageCount, 0, 1000);
+
                 Message msg = new Message("{}", this.getId());
                 msg.setValue("username", username);
                 msg.setValue("target", "others");
@@ -209,30 +161,37 @@ public class Server extends ServerSocket {
                 }
 
                 String line = in.readLine();
-                while(!"bye".equals(line)) {
+                msg = new Message(line, this.getId());
+                while(!"logout".equals(msg.getValue("event"))) {
                     //查看在线用户列表
-                    if ("showuser".equals(line)) {
+                    if ("showuser".equals(msg.getValue("event"))) {
                         out.println(listOnlineUsers());
-                    } else {
-                        synchronized (msgLock) {
-                            if (msg_in_second <= MAX_MESSAGE_PER_SECOND) {
-                                msg.setValue("event", "message");
-                                msg.setValue("target", "others");
-                                msg.setValue("msg", line);
-                                pushMessage(msg);
-                                ++num_message;
-                                ++msg_in_second;
-                                ++received_msg;
-                            } else {
-                                ++ignored_msg;
+                    } else if ("message".equals(msg.getValue("event"))) {
+                        if (messageCount.getMsgInSecond() <= MAX_MESSAGE_PER_SECOND) {
+                            msg.setValue("username", username);
+                            msg.setValue("event", "message");
+                            msg.setValue("target", "others");
+                            pushMessage(msg);
+                            messageCount.increaseMsg();
+                            synchronized (checkCount.getLock(received_msg)) {
+                                checkCount.addCount(received_msg);
+                            }
+                        } else {
+                            synchronized (checkCount.getLock(ignored_msg)) {
+                                checkCount.addCount(ignored_msg);
                             }
                         }
-                        if (num_message == MAX_MESSAGE_FOR_TOTAL) {
+                        if (messageCount.getMsgTotal() == MAX_MESSAGE_FOR_TOTAL) {
                             out.println(new Message("{'event':'relogin','target':'itself'}", this.getId()));
-                            login(in, out, dataSource);
+                            verification.login(in, out, dataSource, checkCount, valid_login_per_min, invalid_login_per_min, this.getId());
+                            username = verification.getUsername();
+                            password = verification.getPassword();
+                            messageCount.reset();
                         }
                     }
                     line = in.readLine();
+                    msg = new Message(line, this.getId());
+                    System.out.println(msg);
                 }
                 msg.setValue("target", "all");
                 msg.setValue("event", "quit");
@@ -277,7 +236,11 @@ public class Server extends ServerSocket {
     }
 
     public static void main(String[] args)throws IOException {
-        Server server = new Server();//启动服务端
+        int SERVER_PORT = 2095;
+        String logFilename = "server.log";
+        String dbuser = "root";
+        String dbpw = "510894";
+        Server server = new Server(SERVER_PORT, logFilename, dbuser, dbpw, true);//启动服务端
         server.run();
     }
 }
