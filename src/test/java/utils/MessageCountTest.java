@@ -10,33 +10,43 @@ import static org.junit.Assert.*;
  */
 public class MessageCountTest {
 
+    MessageCount messageCount;
+
     @Before
     public void setUp() throws Exception {
-
+        messageCount = new MessageCount();
     }
 
     @Test
     public void run() throws Exception {
-
-    }
-
-    @Test
-    public void getMsgInSecond() throws Exception {
-
-    }
-
-    @Test
-    public void getMsgTotal() throws Exception {
-
+        messageCount.increaseMsg();
+        System.out.println(messageCount.getMsgInSecond());
+        System.out.println(messageCount.getMsgTotal());
+        messageCount.run();
     }
 
     @Test
     public void increaseMsg() throws Exception {
-
+        System.out.println(messageCount.getMsgInSecond());
+        System.out.println(messageCount.getMsgTotal());
+        messageCount.increaseMsg();
+        System.out.println(messageCount.getMsgInSecond());
+        System.out.println(messageCount.getMsgTotal());
     }
 
     @Test
     public void reset() throws Exception {
-
+        messageCount.increaseMsg();
+        System.out.println(messageCount.getMsgInSecond());
+        System.out.println(messageCount.getMsgTotal());
+        messageCount.reset();
+        System.out.println(messageCount.getMsgInSecond());
+        System.out.println(messageCount.getMsgTotal());
+        messageCount.increaseMsg();
+        System.out.println(messageCount.getMsgInSecond());
+        System.out.println(messageCount.getMsgTotal());
+        messageCount.reset();
+        System.out.println(messageCount.getMsgInSecond());
+        System.out.println(messageCount.getMsgTotal());
     }
 }
