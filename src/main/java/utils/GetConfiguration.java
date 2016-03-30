@@ -40,9 +40,9 @@ public class GetConfiguration {
 		DBUSER = jsonObject.getString("DBUSER");
 		DBPW = jsonObject.getString("DBPW");
 		
-		System.out.println(SERVER_IP+"\n"+SERVER_PORT+"\n"+
-		MAX_MESSAGE_PER_SECOND+"\n"+MAX_MESSAGE_FOR_TOTAL+
-		"\n"+DBUSER+"\n"+DBPW);
+//		System.out.println(SERVER_IP+"\n"+SERVER_PORT+"\n"+
+//		MAX_MESSAGE_PER_SECOND+"\n"+MAX_MESSAGE_FOR_TOTAL+
+//		"\n"+DBUSER+"\n"+DBPW);
 	}
 	
 	//读取文件，将文件内容以字符串形式返回
