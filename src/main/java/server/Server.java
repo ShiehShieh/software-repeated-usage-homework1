@@ -20,7 +20,6 @@ import java.util.Timer;
  */
 public class Server extends ServerSocket {
     private static Object threadLock = new Object();
-    private Timer loginTimer;
     private boolean withLog = false;
     private String logFile;
 
@@ -29,7 +28,8 @@ public class Server extends ServerSocket {
     private static LinkedList<Message> msg_list = new LinkedList<Message>();//存放消息队列
     private static DataSource dataSource;
 
-    private CheckCount checkCount;
+    private Logger logger;
+    private License license;
 
     public String valid_login_per_min = "valid login per min: ";
     public String invalid_login_per_min = "invalid login per min: ";
@@ -52,14 +52,14 @@ public class Server extends ServerSocket {
     public void run() throws IOException {
         if (withLog) {
             System.out.println("Logging into " + this.logFile);
-            checkCount = new CheckCount(this.logFile);
-            checkCount.addCountType(valid_login_per_min);
-            checkCount.addCountType(invalid_login_per_min);
-            checkCount.addCountType(received_msg);
-            checkCount.addCountType(ignored_msg);
-            checkCount.addCountType(forwarded_msg);
-            loginTimer = new Timer();
-            loginTimer.schedule(checkCount, 0, 60000);
+            logger = new Logger(this.logFile);
+            logger.addCountType(valid_login_per_min);
+            logger.addCountType(invalid_login_per_min);
+            logger.addCountType(received_msg);
+            logger.addCountType(ignored_msg);
+            logger.addCountType(forwarded_msg);
+            logger.setTime(0, 60000);
+            logger.commence();
         }
 
         try {
@@ -96,9 +96,7 @@ public class Server extends ServerSocket {
                                         (msg.getValue("target").equals("others") && msg.getOwner() != thread.getId()) ||
                                         (msg.getValue("target").equals("itself") && msg.getOwner() == thread.getId())) {
                                     thread.sendMessage(msg.toString());
-                                    synchronized (checkCount.getLock(forwarded_msg)) {
-                                        checkCount.addCount(forwarded_msg);
-                                    }
+                                    logger.addCount(forwarded_msg);
                                 }
                             }
                             msg_list.removeFirst();
@@ -121,33 +119,31 @@ public class Server extends ServerSocket {
         private String password = "";
         private int MAX_MESSAGE_PER_SECOND = 5;
         private int MAX_MESSAGE_FOR_TOTAL = 10;
-        private Timer timer;
         private Verification verification;
-        private MessageCount messageCount;
+        private License license;
 
         public ServerThread() {
-            timer = new Timer();
+            license = new License(MAX_MESSAGE_PER_SECOND, MAX_MESSAGE_FOR_TOTAL, 0, 1000);
             return;
         }
 
         public ServerThread(Socket s)throws IOException {
-            timer = new Timer();
+            license = new License(MAX_MESSAGE_PER_SECOND, MAX_MESSAGE_FOR_TOTAL, 0, 1000);
             this.client = s;
             out = new PrintWriter(client.getOutputStream(),true);
             in = new BufferedReader(new InputStreamReader(client.getInputStream()));
             verification = new Verification();
-            messageCount = new MessageCount();
             start();
         }
 
         @Override
         public void run() {
             try {
-                verification.login(in, out, dataSource, checkCount, valid_login_per_min,invalid_login_per_min, this.getId());
+                verification.login(in, out, dataSource, logger, valid_login_per_min,invalid_login_per_min, this.getId());
                 username = verification.getUsername();
                 password = verification.getPassword();
-                messageCount.reset();
-                timer.schedule(messageCount, 0, 1000);
+                license.reset();
+                license.commence();
 
                 Message msg = new Message("{}", this.getId());
                 msg.setValue("username", username);
@@ -167,31 +163,26 @@ public class Server extends ServerSocket {
                     if ("showuser".equals(msg.getValue("event"))) {
                         out.println(listOnlineUsers());
                     } else if ("message".equals(msg.getValue("event"))) {
-                        if (messageCount.getMsgInSecond() <= MAX_MESSAGE_PER_SECOND) {
+                        if (license.checkMsgInSecond()) {
                             msg.setValue("username", username);
                             msg.setValue("event", "message");
                             msg.setValue("target", "others");
                             pushMessage(msg);
-                            messageCount.increaseMsg();
-                            synchronized (checkCount.getLock(received_msg)) {
-                                checkCount.addCount(received_msg);
-                            }
+                            license.increaseMsg();
+                            logger.addCount(received_msg);
                         } else {
-                            synchronized (checkCount.getLock(ignored_msg)) {
-                                checkCount.addCount(ignored_msg);
-                            }
+                            logger.addCount(ignored_msg);
                         }
-                        if (messageCount.getMsgTotal() == MAX_MESSAGE_FOR_TOTAL) {
+                        if (!license.checkTotalMsg()) {
                             out.println(new Message("{'event':'relogin','target':'itself'}", this.getId()));
-                            verification.login(in, out, dataSource, checkCount, valid_login_per_min, invalid_login_per_min, this.getId());
+                            verification.login(in, out, dataSource, logger, valid_login_per_min, invalid_login_per_min, this.getId());
                             username = verification.getUsername();
                             password = verification.getPassword();
-                            messageCount.reset();
+                            license.reset();
                         }
                     }
                     line = in.readLine();
                     msg = new Message(line, this.getId());
-                    System.out.println(msg);
                 }
                 msg.setValue("target", "all");
                 msg.setValue("event", "quit");
@@ -204,7 +195,7 @@ public class Server extends ServerSocket {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                timer.cancel();
+                license.cancel();
                 synchronized (threadLock) {
                     thread_list.remove(this);
                     user_list.remove(username);
@@ -239,7 +230,7 @@ public class Server extends ServerSocket {
         int SERVER_PORT = 2095;
         String logFilename = "server.log";
         String dbuser = "root";
-        String dbpw = "510894";
+        String dbpw = "root";
         Server server = new Server(SERVER_PORT, logFilename, dbuser, dbpw, true);//启动服务端
         server.run();
     }

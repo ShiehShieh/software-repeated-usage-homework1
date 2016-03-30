@@ -1,9 +1,6 @@
 package utils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TimerTask;
+import java.util.*;
 
 /**
  * Created by shieh on 3/28/16.
@@ -27,7 +24,9 @@ public class CheckCount extends TimerTask {
     }
 
     public void addCount(String msg) {
-        counts.put(msg, counts.get(msg)+1);
+        synchronized (locks.get(msg)) {
+            counts.put(msg, counts.get(msg) + 1);
+        }
     }
 
     public Object getLock(String msg) {

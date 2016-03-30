@@ -1,6 +1,8 @@
 package server;
 
 import org.json.JSONException;
+
+import utils.CheckCount;
 import utils.IOLog;
 import utils.Message;
 import java.io.BufferedReader;
@@ -17,9 +19,9 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- * Created by shieh on 3/21/16.
+ * Created by Xiemingyue & Jipengyue on 3/29/16.
  */
-public class Client extends Socket {
+public class Client  extends Socket {
 
 
     private static final String SERVER_IP ="127.0.0.1";
@@ -50,11 +52,24 @@ public class Client extends Socket {
     Map<String,String> map=new HashMap<String,String>();
     //客户端输入
     String input="";
+    private String nameForFile="";
+    //发送和接受消息次数的计时器
+    private Timer SendReceive;
+    //登录成功和失败次数的计时器
+    private Timer SuccessFail;
+    //计数器:登录
+    private CheckCount countLogin;
+    //计数器：消息
+    private CheckCount countMsg;
 
+    public String login_success = "login successfully ";
+    public String login_fail = "login failed ";
+    public String receive_msg = "receive message ";
+    public String send_msg = "send message ";
     /**
      * 与服务器连接，并输入发送消息
      */
-    public Client()throws Exception{
+    public  Client()throws Exception{
         super(SERVER_IP, SERVER_PORT);
         client =this;
         Message msg;
@@ -62,6 +77,12 @@ public class Client extends Socket {
         in =new BufferedReader(new InputStreamReader(this.getInputStream()));
         strin = new BufferedReader(new InputStreamReader(System.in));
         String input;
+        String getFromMap=map.get("username");
+        SuccessFail = new Timer();
+        countLogin = new CheckCount(new SimpleDateFormat("yyyyMMdd").format(Calendar.getInstance().getTime())+".log");
+        countLogin.addCountType(login_success);
+        countLogin.addCountType(login_fail);
+        SuccessFail.schedule(countLogin,0,60000);
         readLineThread rt = new readLineThread();
 
         stdinFlag = false;
@@ -74,6 +95,7 @@ public class Client extends Socket {
                 msg.setValue("msg", input);
                 msg.setValue("event", "message");
                 out.println(msg);
+                countMsg.addCount(send_msg);
             }
         }
     }
@@ -96,28 +118,6 @@ public class Client extends Socket {
         return fileName;
     }
 
-    //此类用于存入每分钟发送的消息数
-    class SaveRecord extends TimerTask{
-        @Override
-        public void run() {
-            // TODO Auto-generated method stub
-            //将每分钟发送的消息数存入文件中
-            SaveToFile() ;
-            synchronized (SendMsgLock) {
-                send_message=0;
-            }
-        }
-        public void SaveToFile(){
-            //将每分钟发送的消息数存入文件中
-            String res;
-            res = new SimpleDateFormat("yyyyMMdd_HHmmss: ").format(Calendar.getInstance().getTime());
-            ClientLog.IOWrite(res+"client send message : " +  send_message + "\n");
-            ClientLog.IOWrite(res+"client receive message: " + received_message + "\n");
-            ClientLog.IOWrite(res+"client login success: " + loginSuccess + "\n");
-            ClientLog.IOWrite(res+"client login fail: " + loginFail + "\n");
-        }
-    }
-
     //处理登录
     public void loginClient() throws IOException{
         String line;
@@ -138,43 +138,43 @@ public class Client extends Socket {
                 msgClient.setValue("username", username);
                 msgClient.setValue("password", password);
                 out.println(msgClient);
-
                 line = in.readLine();
                 msgClient = new Message(line, 0);
                 if (msgClient.getValue("event").equals("valid")) {
-                    ++loginSuccess;
+                    //登录成功次数+1
+                    countLogin.addCount(login_success);
                     //提示用户登录成功
                     System.out.println("login successfully, please input the message:");
                     //将成功登录的用户名和密码存入Map
                     map.put(msgClient.getValue("username"), msgClient.getValue("password"));
-                    //调用函数使得从客户端读取消息并且发送到服务端
+                    //  map.put(username, password);
+                    nameForFile=username;
+                    //关闭计时器：记录登录成功失败
+                    //如果用户名存在的话，进行计数器的创建
+                    countMsg = new CheckCount(nameForFile+".log");
+                    //将需要计数的东西加入计数器
+                    countMsg.addCountType(receive_msg);
+                    countMsg.addCountType(send_msg);
+                    SendReceive = new Timer();
+                    SendReceive.schedule(countMsg, 0,60000);
                     break;
                 }
                 if (msgClient.getValue("event").equals("invalid")) {//登录失败
-                    ++loginFail;
+                    //登录失败次数+1
+                    countLogin.addCount(login_fail);
                     //提示用户登录失败
-                    System.out.println("login failed, please login again");
+                    System.out.println("invalid input, please login again");
                 }
+                else{//用户登录超时，登录失败
+                    countLogin.addCount(login_fail);
+                    System.out.println("login timeout, please login again:");
+                }
+
             } catch (JSONException e) {
                 continue;
             }
         }
-
         stdinFlag = true;
-
-        /*
-        String lastName="";
-        if(!map.isEmpty()){
-            lastName=map.get("username");
-        }
-        if(!lastName.equals(""))
-        {
-            String fileName=createFile(lastName);
-            ClientLog = new IOLog(fileName, true);
-            SaveMsgTimer=new Timer();
-            SaveMsgTimer.schedule(new SaveRecord(), 0,60000);
-        }
-        */
     }
 
     /**
@@ -198,17 +198,29 @@ public class Client extends Socket {
                 while(true){
                     String result = buff.readLine();
                     msgClient = new Message(result, this.getId());
+                    System.out.println(msgClient);
+                    //登录成功失败次数的计数器
+                    long id=this.getId();
+
+                    //启动记录登录成功或失败的次数的计时器
+                    //  if(msgClient.toString()!=null){
+                    //  }
                     if(msgClient.getValue("event").equals("quit")){//客户端申请退出，服务端返回确认退出
+                        SendReceive.cancel();
                         break;
                     } else if (msgClient.getValue("event").equals("login")) {
                         loginClient();
+
                     } else if (msgClient.getValue("event").equals("relogin")) {
                         result = buff.readLine();
+                        SendReceive.cancel();
                         loginClient();
                     } else if (msgClient.getValue("event").equals("logedin")) {
                         System.out.println("user: "+msgClient.getValue("username")+" loged in.");
                     } else if (msgClient.getValue("event").equals("message")) { //输出服务端发送消息
                         System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
+                        //如果收到了消息
+                        countMsg.addCount(receive_msg);
                     }
                     synchronized (stdinLock) {
                         stdinLock.notify();
@@ -226,6 +238,7 @@ public class Client extends Socket {
     public static void main(String[] args) {
         try {
             new Client();//启动客户端
+
         }catch (Exception e) {
         }
     }

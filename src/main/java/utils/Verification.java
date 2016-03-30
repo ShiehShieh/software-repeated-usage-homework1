@@ -22,7 +22,7 @@ public class Verification {
         return this.password;
     }
 
-    public void login(BufferedReader in, PrintWriter out, DataSource dataSource, CheckCount checkCount,
+    public void login(BufferedReader in, PrintWriter out, DataSource dataSource, Logger logger,
                       String valid_login_per_min, String invalid_login_per_min, long threadId)throws IOException {
         String line;
         Message msg;
@@ -37,18 +37,14 @@ public class Verification {
                 username = msg.getValue("username");
                 password = msg.getValue("password");
                 if (password.equals(dataSource.getPassword(username))) {
-                    synchronized (checkCount.getLock(valid_login_per_min)) {
-                        checkCount.addCount(valid_login_per_min);
-                        msg.setValue("event", "valid");
-                        out.println(msg);
-                        break;
-                    }
+                    logger.addCount(valid_login_per_min);
+                    msg.setValue("event", "valid");
+                    out.println(msg);
+                    break;
                 } else {
-                    synchronized (checkCount.getLock(invalid_login_per_min)) {
-                        checkCount.addCount(invalid_login_per_min);
-                        msg.setValue("event", "invalid");
-                        out.println(msg);
-                    }
+                    logger.addCount(invalid_login_per_min);
+                    msg.setValue("event", "invalid");
+                    out.println(msg);
                 }
             } catch (JSONException e) {
                 continue;
