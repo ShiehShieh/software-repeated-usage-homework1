@@ -1,5 +1,7 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -31,7 +33,7 @@ public class GetConfiguration {
 	
 	//解析JSON,将得到的所有配置信息存储在私有变量中
 	public void GetConfigurationInfo() throws JSONException{
-		content = ReadJSONFile("configuration.json");     
+		content = ReadJSONFile("configuration.json");  
 		JSONObject jsonObject = new JSONObject(content);
 		SERVER_IP = jsonObject.getString("SERVER_IP");
 		SERVER_PORT = jsonObject.getInt("SERVER_PORT");
@@ -40,9 +42,9 @@ public class GetConfiguration {
 		DBUSER = jsonObject.getString("DBUSER");
 		DBPW = jsonObject.getString("DBPW");
 		
-//		System.out.println(SERVER_IP+"\n"+SERVER_PORT+"\n"+
-//		MAX_MESSAGE_PER_SECOND+"\n"+MAX_MESSAGE_FOR_TOTAL+
-//		"\n"+DBUSER+"\n"+DBPW);
+		System.out.println(SERVER_IP+"\n"+SERVER_PORT+"\n"+
+		MAX_MESSAGE_PER_SECOND+"\n"+MAX_MESSAGE_FOR_TOTAL+
+		"\n"+DBUSER+"\n"+DBPW);
 	}
 	
 	//读取文件，将文件内容以字符串形式返回
@@ -76,9 +78,49 @@ public class GetConfiguration {
 		
 	}
 	
+	
+	//将指定的配置信息写入指定文件中
+	public void writeJSONFile(String path,String[] key,String[] value){
+		BufferedWriter writer = null;
+		StringBuilder str = new StringBuilder();
+		str.append('{');
+		for(int i=0;i<key.length;i++){
+			str.append('"');
+			str.append(key[i]);
+			str.append('"');
+			str.append(':');
+			str.append('"');
+			str.append(value[i]);
+			str.append('"');
+			if(i!=key.length-1)
+				str.append(',');
+		}
+		str.append('}');
+		
+		 try {
+			 writer = new BufferedWriter(new FileWriter(path));
+			 writer.write(str.toString());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}finally{
+			if(writer != null){
+				try {
+					writer.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
+	}
 
 //	public static void main(String[] args) throws JSONException{
 //			GetConfiguration c = new GetConfiguration();
+//			String[] a = new String[]{"key1","key2","key3"};
+//			String[] b = new String[]{"value1","value2","value3"};
+//			String path = "output.json";
+//			c.writeJSONFile(path, a, b);
 //	}
 
 	public String getSERVER_IP() {
