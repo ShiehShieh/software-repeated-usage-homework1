@@ -24,12 +24,9 @@ public class Server extends ServerSocket {
     private String logFile;
 
     private static List user_list = new ArrayList();//登录用户集合
-    private static List<ServerThread> thread_list = new ArrayList<ServerThread>();//服务器已启用线程集合
-    private static LinkedList<Message> msg_list = new LinkedList<Message>();//存放消息队列
     private static DataSource dataSource;
 
     private Logger logger;
-    private License license;
 
     public String valid_login_per_min = "valid login per min: ";
     public String invalid_login_per_min = "invalid login per min: ";
@@ -42,7 +39,6 @@ public class Server extends ServerSocket {
      */
     public Server(int SERVER_PORT, String logFilename, String dbuser, String dbpw, boolean withLog)throws IOException {
         super(SERVER_PORT);//创建ServerSocket
-        new PrintOutThread();//创建向客户端发送消息线程
         this.logFile = logFilename;
         this.withLog = withLog;
 
@@ -74,41 +70,6 @@ public class Server extends ServerSocket {
     }
 
     /**
-     * 监听是否有输出消息请求线程类,向客户端发送消息
-     */
-    class PrintOutThread extends Thread{
-
-        public PrintOutThread(){
-            start();
-        }
-
-        @Override
-        public void run() {
-            while(true){
-                // System.out.println(message_list.size());
-                try {
-                    sleep(100);
-                    synchronized (msg_list) {
-                        if (msg_list.size() > 0) {//将缓存在队列中的消息按顺序发送到各客户端，并从队列中清除。
-                            Message msg = msg_list.getFirst();
-                            for (ServerThread thread : thread_list) {
-                                if (msg.getValue("target").equals("all") ||
-                                        (msg.getValue("target").equals("others") && msg.getOwner() != thread.getId()) ||
-                                        (msg.getValue("target").equals("itself") && msg.getOwner() == thread.getId())) {
-                                    thread.sendMessage(msg.toString());
-                                    logger.addCount(forwarded_msg);
-                                }
-                            }
-                            msg_list.removeFirst();
-                        }
-                    }
-                } catch (Exception e) {
-                }
-            }
-        }
-    }
-
-    /**
      * 服务器线程类
      */
     class ServerThread extends Thread {
@@ -121,6 +82,10 @@ public class Server extends ServerSocket {
         private int MAX_MESSAGE_FOR_TOTAL = 10;
         private Verification verification;
         private License license;
+        public Message msg;
+        public MessageDeparturer messageDeparturer;
+        String exchangeName = "test";
+        String queueName;
 
         public ServerThread() {
             license = new License(MAX_MESSAGE_PER_SECOND, MAX_MESSAGE_FOR_TOTAL, 0, 1000);
@@ -144,20 +109,22 @@ public class Server extends ServerSocket {
                 password = verification.getPassword();
                 license.reset();
                 license.commence();
-
-                Message msg = new Message("{}", this.getId());
-                msg.setValue("username", username);
-                msg.setValue("target", "others");
-
-                synchronized(threadLock) {
+                synchronized (threadLock) {
                     user_list.add(username);
-                    thread_list.add(this);
-                    msg.setValue("event", "logedin");
-                    this.pushMessage(msg);
                 }
 
+                queueName = String.valueOf(this.getId());
+                msg = new Message("{}", this.getId());
+                msg.setValue("username", username);
+                msg.setValue("target", "others");
+                msg.init(queueName, "localhost");
+                msg.bindTo(exchangeName, queueName);
+                messageDeparturer = new MessageDeparturer(msg, out, logger, forwarded_msg);
+                msg.setValue("event", "logedin");
+                msg.publishToAll(exchangeName);
+
                 String line = in.readLine();
-                msg = new Message(line, this.getId());
+                msg.reset(line);
                 while(!"logout".equals(msg.getValue("event"))) {
                     //查看在线用户列表
                     if ("showuser".equals(msg.getValue("event"))) {
@@ -167,7 +134,7 @@ public class Server extends ServerSocket {
                             msg.setValue("username", username);
                             msg.setValue("event", "message");
                             msg.setValue("target", "others");
-                            pushMessage(msg);
+                            msg.publishToAll(exchangeName);
                             license.increaseMsg();
                             logger.addCount(received_msg);
                         } else {
@@ -182,11 +149,11 @@ public class Server extends ServerSocket {
                         }
                     }
                     line = in.readLine();
-                    msg = new Message(line, this.getId());
+                    msg.reset(line);
                 }
                 msg.setValue("target", "all");
                 msg.setValue("event", "quit");
-                pushMessage(msg);
+                msg.publishToAll(exchangeName);
             } catch (Exception e) {
                 e.printStackTrace();
             } finally { //用户退出聊天室
@@ -196,17 +163,6 @@ public class Server extends ServerSocket {
                     e.printStackTrace();
                 }
                 license.cancel();
-                synchronized (threadLock) {
-                    thread_list.remove(this);
-                    user_list.remove(username);
-                }
-            }
-        }
-
-        //放入消息队列末尾，准备发送给客户端
-        private void pushMessage(Message msg){
-            synchronized(msg_list) {
-                msg_list.addLast(msg);
             }
         }
 
