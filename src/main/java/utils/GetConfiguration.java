@@ -146,7 +146,4 @@ public class GetConfiguration {
 	public String getDBPW() {
 		return DBPW;
 	}
-
-	
-	
 }
