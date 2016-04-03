@@ -1,7 +1,9 @@
 package server;
 
-import com.sun.tools.javac.comp.Check;
-import org.json.JSONException;
+import License.License;
+import Logging.Logger;
+import MessageUtils.Message;
+import MessageUtils.MessageDeparturer;
 import utils.*;
 
 import java.io.BufferedReader;
@@ -11,9 +13,7 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Timer;
 
 /**
  * Created by shieh on 3/20/16.
@@ -186,7 +186,7 @@ public class Server extends ServerSocket {
         int SERVER_PORT = 2095;
         String logFilename = "server.log";
         String dbuser = "root";
-        String dbpw = "root";
+        String dbpw = "510894";
         Server server = new Server(SERVER_PORT, logFilename, dbuser, dbpw, true);//启动服务端
         server.run();
     }

@@ -1,4 +1,4 @@
-package utils;
+package MessageUtils;
 
 import org.json.*;
 import com.rabbitmq.client.ConnectionFactory;
