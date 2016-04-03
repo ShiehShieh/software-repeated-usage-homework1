@@ -2,9 +2,10 @@ package Client;
 
 import org.json.JSONException;
 
-import utils.CheckCount;
-import utils.IOLog;
-import utils.Message;
+import utils.GetConfiguration;
+import Logging.CheckCount;
+import Logging.IOLog;
+import MessageUtils.Message;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -23,9 +24,9 @@ import java.util.TimerTask;
  */
 public class Client  extends Socket {
 
-
-    private static final String SERVER_IP ="127.0.0.1";
-    private static final int SERVER_PORT =2095;
+	private static GetConfiguration getConfiguration = new GetConfiguration();
+    private static String SERVER_IP = getConfiguration.getSERVER_IP();
+    private static int SERVER_PORT = getConfiguration.getSERVER_PORT();
     private static Object loginLock = new Object();
 
     private Socket client;
