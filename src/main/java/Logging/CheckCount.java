@@ -1,4 +1,6 @@
-package utils;
+package Logging;
+
+import Logging.IOLog;
 
 import java.util.*;
 
@@ -7,7 +9,7 @@ import java.util.*;
  */
 public class CheckCount extends TimerTask {
     public  ArrayList<String> msgs = new ArrayList<String>();
-    private  IOLog ioLog;
+    private IOLog ioLog;
     private String logFile;
     public  Map<String,Integer> counts = new HashMap<String,Integer>();
     public  Map<String,Object> locks = new HashMap<String,Object>();

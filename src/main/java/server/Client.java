@@ -2,9 +2,9 @@ package server;
 
 import org.json.JSONException;
 
-import utils.CheckCount;
-import utils.IOLog;
-import utils.Message;
+import Logging.CheckCount;
+import Logging.IOLog;
+import MessageUtils.Message;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -16,7 +16,6 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * Created by Xiemingyue & Jipengyue on 3/29/16.

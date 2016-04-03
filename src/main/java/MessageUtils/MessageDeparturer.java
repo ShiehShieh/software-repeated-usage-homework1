@@ -1,8 +1,9 @@
-package utils;
+package MessageUtils;
 
 import com.rabbitmq.client.*;
 import org.json.JSONException;
 import org.json.JSONObject;
+import Logging.Logger;
 
 import java.io.IOException;
 import java.io.PrintWriter;

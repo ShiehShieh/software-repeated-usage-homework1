@@ -1,4 +1,4 @@
-package utils;
+package Logging;
 
 import java.util.Timer;
 

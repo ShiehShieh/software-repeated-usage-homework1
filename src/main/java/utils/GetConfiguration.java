@@ -1,3 +1,5 @@
+package utils;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileInputStream;
@@ -25,8 +27,13 @@ public class GetConfiguration {
 	private String DBPW;
 	
 	
-	GetConfiguration() throws JSONException{
-		GetConfigurationInfo();
+	public GetConfiguration(){
+		try {
+			GetConfigurationInfo();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 				
 	}
 	
