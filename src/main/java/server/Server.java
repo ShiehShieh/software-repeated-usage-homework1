@@ -1,5 +1,6 @@
 package server;
 
+import CM.GetConfiguration;
 import License.License;
 import Logging.Logger;
 import MessageUtils.Message;
@@ -183,10 +184,11 @@ public class Server extends ServerSocket {
     }
 
     public static void main(String[] args)throws IOException {
-        int SERVER_PORT = 2095;
+        GetConfiguration getConfiguration = new GetConfiguration();
+        int SERVER_PORT = getConfiguration.getSERVER_PORT();
         String logFilename = "server.log";
         String dbuser = "root";
-        String dbpw = "510894";
+        String dbpw = "root";
         Server server = new Server(SERVER_PORT, logFilename, dbuser, dbpw, true);//启动服务端
         server.run();
     }
