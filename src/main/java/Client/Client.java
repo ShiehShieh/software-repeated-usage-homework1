@@ -2,7 +2,7 @@ package Client;
 
 import org.json.JSONException;
 
-import utils.GetConfiguration;
+import CM.GetConfiguration;
 import Logging.CheckCount;
 import Logging.IOLog;
 import MessageUtils.Message;
