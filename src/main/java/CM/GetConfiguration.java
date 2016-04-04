@@ -149,6 +149,15 @@ public class GetConfiguration {
 		return value;
 	}
 
+	//动态加载配置信息
+	public void load(){
+		try {
+			GetConfigurationInfo();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 //	public static void main(String[] args) throws JSONException{
 //			GetConfiguration c = new GetConfiguration();
 //			String[] a = new String[]{"key1","key2","key3"};
