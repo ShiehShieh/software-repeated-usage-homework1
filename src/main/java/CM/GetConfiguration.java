@@ -122,32 +122,31 @@ public class GetConfiguration {
 		
 	}
 	
-	//查询接口，根据key值查询对应的value，返回值均以String类型返回
-	public String getValueByKey(String key){
+	//查询接口，根据key值查询对应的value
+	//返回值为string类型
+	public String getStringByKey(String key){
 		String value = null;
-		switch(key){
-		case "SERVER_IP":
-			value = getSERVER_IP();
-			break;
-		case "SERVER_PORT":
-			value = String.valueOf(getSERVER_PORT());
-			break;
-		case "MAX_MESSAGE_PER_SECOND":
-			value = String.valueOf(getMAX_MESSAGE_PER_SECOND());
-			break;
-		case "MAX_MESSAGE_FOR_TOTAL":
-			value = String.valueOf(getMAX_MESSAGE_FOR_TOTAL());
-			break;
-		case "DBUSER":
-			value = getDBUSER();
-			break;
-		case "DBPW":
-			value = getDBPW();
-			break;
-		
+		try {
+			value = jsonObject.getString(key);
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return value;
 	}
+	
+	//返回值为int类型
+	public int getIntByKey(String key){
+		int value = 0;
+		try {
+			value = jsonObject.getInt(key);
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return value;
+	}
+	
 
 	//动态加载配置信息
 	public void load(){
@@ -164,8 +163,8 @@ public class GetConfiguration {
 //			String[] b = new String[]{"value1","value2","value3"};
 //			String path = "output.json";
 //			c.writeJSONFile(path, a, b);
-//			System.out.println(c.getValueByKey("SERVER_IP")+":"
-//			+c.getValueByKey("SERVER_PORT"));
+//			System.out.println(c.getStringByKey("SERVER_IP")+":"
+//			+c.getIntByKey("SERVER_PORT"));
 //	}
 
 	public String getSERVER_IP() {
