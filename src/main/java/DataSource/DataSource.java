@@ -1,25 +1,39 @@
-package server;
+package DataSource;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 /**
- * Created by huangli on 3/24/16.
+ * Created by shieh on 3/24/16.
  */
 public class DataSource {
     private Connection conn;
     private String dbuser;
     private String dbpw;
+    private PrintWriter out;
+    private BufferedReader in;
+    private String sourceType;
+
+
+    public DataSource(BufferedReader in, PrintWriter out) {
+        this.out = out;
+        this.in = in;
+        this.sourceType = "remote";
+    }
 
     public DataSource(String dbuser, String dbpw) {
         this.dbuser = dbuser;
         this.dbpw = dbpw;
+        this.sourceType = "DB";
 
         try{
             //加载MySql的驱动类
-            Class.forName("com.mysql.jdbc.Driver") ;
+            Class.forName("com.mysql.jdbc.Driver");
         } catch(Exception e){
             System.out.println("找不到驱动程序类 ，加载驱动失败！");
             e.printStackTrace() ;
@@ -33,7 +47,11 @@ public class DataSource {
         }
     }
 
-    public String getPassword(String username) {
+    public String getType() {
+        return this.sourceType;
+    }
+
+    public String getPasswordDB(String username) {
         String password = null;
         String sql = "select password from tb_user where username = ?";
         ResultSet rs;
@@ -54,5 +72,12 @@ public class DataSource {
             System.out.println("User do not exist.");
         }
         return password;
+    }
+
+    public String getPasswordResponse(String msg) throws IOException {
+        String res;
+        out.println(msg);
+        res = in.readLine();
+        return res;
     }
 }

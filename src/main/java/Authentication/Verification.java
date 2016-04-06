@@ -1,9 +1,9 @@
-package utils;
+package Authentication;
 
 import Logging.Logger;
 import MessageUtils.Message;
 import org.json.JSONException;
-import server.DataSource;
+import DataSource.DataSource;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -38,7 +38,7 @@ public class Verification {
                 msg = new Message(line, threadId);
                 username = msg.getValue("username");
                 password = msg.getValue("password");
-                if (password.equals(dataSource.getPassword(username))) {
+                if (password.equals(dataSource.getPasswordDB(username))) {
                     logger.addCount(valid_login_per_min);
                     msg.setValue("event", "valid");
                     out.println(msg);
