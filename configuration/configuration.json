@@ -1,8 +1,12 @@
 {
-	"SERVER_IP" : "127.0.0.1" ,
-	"SERVER_PORT" : 2095 ,
-	"MAX_MESSAGE_PER_SECOND" : 5 ,
-	"MAX_MESSAGE_FOR_TOTAL" : 10 ,
-	"DBUSER" : "root" ,
-	"DBPW" : "root"
+	"mutable" : {
+		"MAX_MESSAGE_PER_SECOND" : 5 ,
+		"MAX_MESSAGE_FOR_TOTAL" : 10 ,
+	},
+	"immutable" :{
+		"SERVER_IP" : "127.0.0.1" ,
+		"SERVER_PORT" : 2095 ,	
+		"DBUSER" : "root" ,
+		"DBPW" : "510894"
+	}
 }
