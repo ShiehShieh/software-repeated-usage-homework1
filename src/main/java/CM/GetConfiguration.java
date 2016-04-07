@@ -1,4 +1,4 @@
-package CM;
+
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -6,6 +6,8 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -25,7 +27,8 @@ public class GetConfiguration {
 	private int MAX_MESSAGE_FOR_TOTAL;
 	private String DBUSER;
 	private String DBPW;
-	private JSONObject jsonObject;
+	private JSONObject jsonObject,jsonObjectMutable,jsonObjectImmutable;
+	private Timer timer;
 	
 	public GetConfiguration(){
 		try {
@@ -42,12 +45,18 @@ public class GetConfiguration {
 	public void GetConfigurationInfo() throws JSONException{
 		content = ReadJSONFile("configuration.json");  
 		jsonObject = new JSONObject(content);
-		SERVER_IP = jsonObject.getString("SERVER_IP");
-		SERVER_PORT = jsonObject.getInt("SERVER_PORT");
-		MAX_MESSAGE_PER_SECOND = jsonObject.getInt("MAX_MESSAGE_PER_SECOND");
-		MAX_MESSAGE_FOR_TOTAL = jsonObject.getInt("MAX_MESSAGE_FOR_TOTAL");
-		DBUSER = jsonObject.getString("DBUSER");
-		DBPW = jsonObject.getString("DBPW");
+		
+		jsonObjectMutable = jsonObject.getJSONObject("mutable");
+		
+		MAX_MESSAGE_PER_SECOND = jsonObjectMutable.getInt("MAX_MESSAGE_PER_SECOND");
+		MAX_MESSAGE_FOR_TOTAL = jsonObjectMutable.getInt("MAX_MESSAGE_FOR_TOTAL");
+		
+		jsonObjectImmutable = jsonObject.getJSONObject("immutable");
+		
+		SERVER_IP = jsonObjectImmutable.getString("SERVER_IP");
+		SERVER_PORT = jsonObjectImmutable.getInt("SERVER_PORT");
+		DBUSER = jsonObjectImmutable.getString("DBUSER");
+		DBPW = jsonObjectImmutable.getString("DBPW");
 		
 //		System.out.println(SERVER_IP+"\n"+SERVER_PORT+"\n"+
 //		MAX_MESSAGE_PER_SECOND+"\n"+MAX_MESSAGE_FOR_TOTAL+
@@ -126,36 +135,65 @@ public class GetConfiguration {
 	//返回值为string类型
 	public String getStringByKey(String key){
 		String value = null;
-		try {
-			value = jsonObject.getString(key);
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		String value1 = null,value2 = null;
+		value1 = jsonObjectMutable.optString(key);
+		value2 = jsonObjectImmutable.optString(key);
+		if(value1!="")
+			value = value1;
+		else
+			value = value2;
 		return value;
 	}
 	
 	//返回值为int类型
 	public int getIntByKey(String key){
 		int value = 0;
-		try {
-			value = jsonObject.getInt(key);
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		int value1 = 0,value2 = 0;
+		value1 = jsonObjectMutable.optInt(key);
+		value2 = jsonObjectImmutable.optInt(key);
+		if(value1!=0)
+			value = value1;
+		else
+			value = value2;
 		return value;
 	}
 	
 
 	//动态加载配置信息
-	public void load(){
-		try {
-			GetConfigurationInfo();
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	public void load() throws JSONException{
+		content = ReadJSONFile("configuration.json");  
+		jsonObject = new JSONObject(content);
+		
+		jsonObjectMutable = jsonObject.getJSONObject("mutable");
+		
+		MAX_MESSAGE_PER_SECOND = jsonObjectMutable.getInt("MAX_MESSAGE_PER_SECOND");
+		MAX_MESSAGE_FOR_TOTAL = jsonObjectMutable.getInt("MAX_MESSAGE_FOR_TOTAL");
+		
+	}
+	
+	public void loadData(){
+		timer = new Timer();
+		//30s读取一次
+		timer.schedule(new LoadFileTimerTask(), 0,30000);
+	}
+
+	class LoadFileTimerTask extends TimerTask {
+
+		  @Override
+
+		  public void run() {
+
+		    System.out.println("TestTimerTask is running......");
+		    try {
+				load();
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		    
+
+		  }
+
 	}
 //	public static void main(String[] args) throws JSONException{
 //			GetConfiguration c = new GetConfiguration();
@@ -165,6 +203,7 @@ public class GetConfiguration {
 //			c.writeJSONFile(path, a, b);
 //			System.out.println(c.getStringByKey("SERVER_IP")+":"
 //			+c.getIntByKey("SERVER_PORT"));
+//			c.loadData();
 //	}
 
 	public String getSERVER_IP() {
@@ -190,7 +229,8 @@ public class GetConfiguration {
 	public String getDBPW() {
 		return DBPW;
 	}
-
+	
+	
 	
 	
 }
