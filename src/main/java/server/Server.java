@@ -1,11 +1,12 @@
 package server;
 
+import Authentication.Verification;
 import CM.GetConfiguration;
+import DataSource.DataSource;
 import License.License;
 import Logging.Logger;
 import MessageUtils.Message;
 import MessageUtils.MessageDeparturer;
-import utils.*;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -188,7 +189,7 @@ public class Server extends ServerSocket {
         int SERVER_PORT = getConfiguration.getSERVER_PORT();
         String logFilename = "server.log";
         String dbuser = "root";
-        String dbpw = "root";
+        String dbpw = "510894";
         Server server = new Server(SERVER_PORT, logFilename, dbuser, dbpw, true);//启动服务端
         server.run();
     }
