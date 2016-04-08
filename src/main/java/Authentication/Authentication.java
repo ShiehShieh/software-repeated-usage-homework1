@@ -1,13 +1,10 @@
 package Authentication;
 
 import DataSource.DataSource;
-import Logging.Logger;
 import MessageUtils.Message;
 import org.json.JSONException;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintWriter;
 
 /**
  * Created by shieh on 4/6/16.
