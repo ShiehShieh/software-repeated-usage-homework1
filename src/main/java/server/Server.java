@@ -4,7 +4,7 @@ import Authentication.Verification;
 import CM.GetConfiguration;
 import DataSource.DataSource;
 import License.License;
-import Logging.Logger;
+import PM.Logger;
 import MessageUtils.Message;
 import MessageUtils.MessageDeparturer;
 
@@ -49,7 +49,7 @@ public class Server extends ServerSocket {
 
     public void run() throws IOException {
         if (withLog) {
-            System.out.println("Logging into " + this.logFile);
+            System.out.println("PM into " + this.logFile);
             logger = new Logger(this.logFile);
             logger.addCountType(valid_login_per_min);
             logger.addCountType(invalid_login_per_min);

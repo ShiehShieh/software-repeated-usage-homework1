@@ -3,8 +3,9 @@ package Client;
 import org.json.JSONException;
 
 import CM.GetConfiguration;
-import Logging.CheckCount;
-import Logging.IOLog;
+import PM.CheckCount;
+import PM.IOLog;
+import PM.Logger;
 import MessageUtils.Message;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -17,14 +18,13 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * Created by Xiemingyue & Jipengyue on 3/29/16.
  */
 public class Client  extends Socket {
 
-	private static GetConfiguration getConfiguration = new GetConfiguration();
+    private static GetConfiguration getConfiguration = new GetConfiguration();
     private static String SERVER_IP = getConfiguration.getSERVER_IP();
     private static int SERVER_PORT = getConfiguration.getSERVER_PORT();
     private static Object loginLock = new Object();
@@ -35,40 +35,43 @@ public class Client  extends Socket {
     private BufferedReader strin;
     private final Object stdinLock = new Object();
     private boolean stdinFlag;
-    //¾­¹ıserverÅĞ¶ÏÖ®ºóµÇÂ¼³É¹¦µÄ´ÎÊı
+    //ç»è¿‡serveråˆ¤æ–­ä¹‹åç™»å½•æˆåŠŸçš„æ¬¡æ•°
     private int loginSuccess=0;
-    //µÇÂ¼Ê§°ÜµÄ´ÎÊı
+    //ç™»å½•å¤±è´¥çš„æ¬¡æ•°
     private int loginFail=0;
-    //·¢ËÍµÄÏûÏ¢ÊıÁ¿
+    //å‘é€çš„æ¶ˆæ¯æ•°é‡
     private int send_message=0;
-    //´Ó·şÎñ¶ËÊÕµ½µÄÏûÏ¢ÊıÁ¿
+    //ä»æœåŠ¡ç«¯æ”¶åˆ°çš„æ¶ˆæ¯æ•°é‡
     private int received_message=0;
-    //ÓÃÓÚÃ¿·ÖÖÓ´æÈëÎÄ¼şµÄ¼ÆÊ±Æ÷
+    //ç”¨äºæ¯åˆ†é’Ÿå­˜å…¥æ–‡ä»¶çš„è®¡æ—¶å™¨
     private Timer SaveMsgTimer;
-    //Í¬²½Ëø
+    //åŒæ­¥é”
     private static Object SendMsgLock = new Object();
-    //Ğ´ÈëÎÄ¼ş
+    //å†™å…¥æ–‡ä»¶
     private IOLog ClientLog;
-    //ÓÃÓÚ´æ·ÅµÇÂ¼µÄÓÃ»§ÃûºÍÃÜÂë
+    //ç”¨äºå­˜æ”¾ç™»å½•çš„ç”¨æˆ·åå’Œå¯†ç 
     Map<String,String> map=new HashMap<String,String>();
-    //¿Í»§¶ËÊäÈë
+    //å®¢æˆ·ç«¯è¾“å…¥
     String input="";
     private String nameForFile="";
-    //·¢ËÍºÍ½ÓÊÜÏûÏ¢´ÎÊıµÄ¼ÆÊ±Æ÷
+    //å‘é€å’Œæ¥å—æ¶ˆæ¯æ¬¡æ•°çš„è®¡æ—¶å™¨
     private Timer SendReceive;
-    //µÇÂ¼³É¹¦ºÍÊ§°Ü´ÎÊıµÄ¼ÆÊ±Æ÷
+    //ç™»å½•æˆåŠŸå’Œå¤±è´¥æ¬¡æ•°çš„è®¡æ—¶å™¨
     private Timer SuccessFail;
-    //¼ÆÊıÆ÷:µÇÂ¼
+    //è®¡æ•°å™¨:ç™»å½•
     private CheckCount countLogin;
-    //¼ÆÊıÆ÷£ºÏûÏ¢
+    //è®¡æ•°å™¨ï¼šæ¶ˆæ¯
     private CheckCount countMsg;
+
+    //use in csLogin
+    //private Logger logger;
 
     public String login_success = "login successfully ";
     public String login_fail = "login failed ";
     public String receive_msg = "receive message ";
     public String send_msg = "send message ";
     /**
-     * Óë·şÎñÆ÷Á¬½Ó£¬²¢ÊäÈë·¢ËÍÏûÏ¢
+     * ä¸æœåŠ¡å™¨è¿æ¥ï¼Œå¹¶è¾“å…¥å‘é€æ¶ˆæ¯
      */
     public  Client()throws Exception{
         super(SERVER_IP, SERVER_PORT);
@@ -84,6 +87,14 @@ public class Client  extends Socket {
         countLogin.addCountType(login_success);
         countLogin.addCountType(login_fail);
         SuccessFail.schedule(countLogin,0,60000);
+
+        // use in csLogin
+//        logger = new Logger(new SimpleDateFormat("yyyyMMdd").format(Calendar.getInstance().getTime())+".log");
+//        logger.addCountType(login_success);
+//        logger.addCountType(login_fail);
+//        logger.setTime(0, 60000);
+//        logger.commence();
+
         readLineThread rt = new readLineThread();
 
         stdinFlag = false;
@@ -102,10 +113,10 @@ public class Client  extends Socket {
         }
     }
 
-    //´´½¨ÎÄ¼ş
+    //åˆ›å»ºæ–‡ä»¶
     public String createFile(String lastname){
         File f = new File(".");
-        // fileName±íÊ¾Äã´´½¨µÄÎÄ¼şÃû£»ÎªtxtÀàĞÍ£»
+        // fileNameè¡¨ç¤ºä½ åˆ›å»ºçš„æ–‡ä»¶åï¼›ä¸ºtxtç±»å‹ï¼›
         String fileName=lastname+".txt";
         //String fileName="1234";
         File file = new File(f,fileName);
@@ -120,7 +131,7 @@ public class Client  extends Socket {
         return fileName;
     }
 
-    //´¦ÀíµÇÂ¼
+    //å¤„ç†ç™»å½•
     public void loginClient() throws IOException{
         String line;
         Message msgClient;
@@ -129,11 +140,30 @@ public class Client  extends Socket {
 
         stdinFlag = false;
 
+        // use csLogin
+//        DataSource dataSource = new DataSource(in, out);
+//
+//        Verification verification = new Verification();
+//        verification.csLogin(in,out,dataSource,logger,login_success,login_fail);
+//
+//        username = verification.getUsername();
+//        password = verification.getPassword();
+//
+//        map.put(username, password);
+//
+//        nameForFile=username;
+//
+//        countMsg = new CheckCount(nameForFile+".log");
+//        countMsg.addCountType(receive_msg);
+//        countMsg.addCountType(send_msg);
+//        SendReceive = new Timer();
+//        SendReceive.schedule(countMsg, 0,60000);
+
         while (true) {
             try {
-                System.out.print("please input the username£º");
+                System.out.print("please input the usernameï¼š");
                 username = strin.readLine();
-                System.out.println("please input the password£º");
+                System.out.println("please input the passwordï¼š");
                 password = strin.readLine();
                 msgClient = new Message("{}", 0);
                 msgClient.setValue("event", "login");
@@ -143,32 +173,32 @@ public class Client  extends Socket {
                 line = in.readLine();
                 msgClient = new Message(line, 0);
                 if (msgClient.getValue("event").equals("valid")) {
-                    //µÇÂ¼³É¹¦´ÎÊı+1
+                    //ç™»å½•æˆåŠŸæ¬¡æ•°+1
                     countLogin.addCount(login_success);
-                    //ÌáÊ¾ÓÃ»§µÇÂ¼³É¹¦
+                    //æç¤ºç”¨æˆ·ç™»å½•æˆåŠŸ
                     System.out.println("login successfully, please input the message:");
-                    //½«³É¹¦µÇÂ¼µÄÓÃ»§ÃûºÍÃÜÂë´æÈëMap
+                    //å°†æˆåŠŸç™»å½•çš„ç”¨æˆ·åå’Œå¯†ç å­˜å…¥Map
                     map.put(msgClient.getValue("username"), msgClient.getValue("password"));
                     //  map.put(username, password);
                     nameForFile=username;
-                    //¹Ø±Õ¼ÆÊ±Æ÷£º¼ÇÂ¼µÇÂ¼³É¹¦Ê§°Ü
-                  //  SuccessFail.cancel();
-                    //Èç¹ûÓÃ»§Ãû´æÔÚµÄ»°£¬½øĞĞ¼ÆÊıÆ÷µÄ´´½¨
+                    //å…³é—­è®¡æ—¶å™¨ï¼šè®°å½•ç™»å½•æˆåŠŸå¤±è´¥
+                    //  SuccessFail.cancel();
+                    //å¦‚æœç”¨æˆ·åå­˜åœ¨çš„è¯ï¼Œè¿›è¡Œè®¡æ•°å™¨çš„åˆ›å»º
                     countMsg = new CheckCount(nameForFile+".log");
-                    //½«ĞèÒª¼ÆÊıµÄ¶«Î÷¼ÓÈë¼ÆÊıÆ÷
+                    //å°†éœ€è¦è®¡æ•°çš„ä¸œè¥¿åŠ å…¥è®¡æ•°å™¨
                     countMsg.addCountType(receive_msg);
                     countMsg.addCountType(send_msg);
                     SendReceive = new Timer();
                     SendReceive.schedule(countMsg, 0,60000);
                     break;
                 }
-                if (msgClient.getValue("event").equals("invalid")) {//µÇÂ¼Ê§°Ü
-                    //µÇÂ¼Ê§°Ü´ÎÊı+1
+                if (msgClient.getValue("event").equals("invalid")) {//ç™»å½•å¤±è´¥
+                    //ç™»å½•å¤±è´¥æ¬¡æ•°+1
                     countLogin.addCount(login_fail);
-                    //ÌáÊ¾ÓÃ»§µÇÂ¼Ê§°Ü
+                    //æç¤ºç”¨æˆ·ç™»å½•å¤±è´¥
                     System.out.println("invalid input, please login again");
                 }
-                else{//ÓÃ»§µÇÂ¼³¬Ê±£¬µÇÂ¼Ê§°Ü
+                else{//ç”¨æˆ·ç™»å½•è¶…æ—¶ï¼Œç™»å½•å¤±è´¥
                     countLogin.addCount(login_fail);
                     System.out.println("login timeout, please login again:");
                 }
@@ -181,7 +211,7 @@ public class Client  extends Socket {
     }
 
     /**
-     * ÓÃÓÚ¼àÌı·şÎñÆ÷¶ËÏò¿Í»§¶Ë·¢ËÍÏûÏ¢Ïß³ÌÀà
+     * ç”¨äºç›‘å¬æœåŠ¡å™¨ç«¯å‘å®¢æˆ·ç«¯å‘é€æ¶ˆæ¯çº¿ç¨‹ç±»
      */
     class readLineThread extends Thread{
 
@@ -202,14 +232,14 @@ public class Client  extends Socket {
                     String result = buff.readLine();
                     msgClient = new Message(result, this.getId());
                     System.out.println(msgClient);
-                    //µÇÂ¼³É¹¦Ê§°Ü´ÎÊıµÄ¼ÆÊıÆ÷
+                    //ç™»å½•æˆåŠŸå¤±è´¥æ¬¡æ•°çš„è®¡æ•°å™¨
                     long id=this.getId();
 
-                  
-                    //Æô¶¯¼ÇÂ¼µÇÂ¼³É¹¦»òÊ§°ÜµÄ´ÎÊıµÄ¼ÆÊ±Æ÷
+
+                    //å¯åŠ¨è®°å½•ç™»å½•æˆåŠŸæˆ–å¤±è´¥çš„æ¬¡æ•°çš„è®¡æ—¶å™¨
                     //  if(msgClient.toString()!=null){
                     //  }
-                    if(msgClient.getValue("event").equals("quit")){//¿Í»§¶ËÉêÇëÍË³ö£¬·şÎñ¶Ë·µ»ØÈ·ÈÏÍË³ö
+                    if(msgClient.getValue("event").equals("quit")){//å®¢æˆ·ç«¯ç”³è¯·é€€å‡ºï¼ŒæœåŠ¡ç«¯è¿”å›ç¡®è®¤é€€å‡º
                         SendReceive.cancel();
                         break;
                     } else if (msgClient.getValue("event").equals("login")) {
@@ -221,9 +251,9 @@ public class Client  extends Socket {
                         loginClient();
                     } else if (msgClient.getValue("event").equals("logedin")) {
                         System.out.println("user: "+msgClient.getValue("username")+" loged in.");
-                    } else if (msgClient.getValue("event").equals("message")) { //Êä³ö·şÎñ¶Ë·¢ËÍÏûÏ¢
+                    } else if (msgClient.getValue("event").equals("message")) { //è¾“å‡ºæœåŠ¡ç«¯å‘é€æ¶ˆæ¯
                         System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
-                        //Èç¹ûÊÕµ½ÁËÏûÏ¢
+                        //å¦‚æœæ”¶åˆ°äº†æ¶ˆæ¯
                         countMsg.addCount(receive_msg);
                     }
                     synchronized (stdinLock) {
@@ -241,7 +271,7 @@ public class Client  extends Socket {
 
     public static void main(String[] args) {
         try {
-            new Client();//Æô¶¯¿Í»§¶Ë
+            new Client();//å¯åŠ¨å®¢æˆ·ç«¯
         }catch (Exception e) {
         }
     }
