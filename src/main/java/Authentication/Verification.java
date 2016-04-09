@@ -101,8 +101,7 @@ public class Verification {
                     msg.setValue("event","login");
                     msg.setValue("username",username);
                     msg.setValue("password",password);
-                    out.println(msg);
-                    line = in.readLine();
+                    line = dataSource.getPasswordResponse(msg.toString());
                     msg = new Message(line,0);
                     if(msg.getValue("event").equals("valid")){
                         logger.addCount(valid_login);
