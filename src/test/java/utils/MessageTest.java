@@ -1,12 +1,11 @@
 package utils;
 
+import MessageUtils.Message;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
 /**
- * Created by huangli on 3/24/16.
+ * Created by shieh on 3/24/16.
  */
 public class MessageTest {
 

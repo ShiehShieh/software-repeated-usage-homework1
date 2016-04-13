@@ -1,11 +1,10 @@
-package utils;
+package PM;
 
 import org.junit.Before;
 import org.junit.Test;
-import utils.IOLog;
 
 /**
- * Created by huangli on 3/23/16.
+ * Created by shieh on 3/23/16.
  */
 public class IOLogTest {
 

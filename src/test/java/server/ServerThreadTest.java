@@ -1,13 +1,12 @@
 package server;
 
+import DataSource.DataSource;
 import org.junit.Before;
 import org.junit.Test;
 import java.io.*;
 
-import static org.junit.Assert.*;
-
 /**
- * Created by huangli on 3/23/16.
+ * Created by shieh on 3/23/16.
  */
 public class ServerThreadTest {
 

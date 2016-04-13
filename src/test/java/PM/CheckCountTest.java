@@ -1,16 +1,14 @@
-package utils;
+package PM;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
 /**
- * Created by huangli on 3/23/16.
+ * Created by shieh on 3/23/16.
  */
 public class CheckCountTest {
 
-    utils.CheckCount checkCount;
+    CheckCount checkCount;
 
     String valid_login_per_min = "valid login per min: ";
     String invalid_login_per_min = "invalid login per min: ";
@@ -20,7 +18,7 @@ public class CheckCountTest {
 
     @Before
     public void setUp() throws Exception {
-        checkCount = new utils.CheckCount("test.log");
+        checkCount = new CheckCount("test.log");
         checkCount.addCountType(valid_login_per_min);
         checkCount.addCountType(invalid_login_per_min);
         checkCount.addCountType(received_msg);
