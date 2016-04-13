@@ -38,9 +38,12 @@ public class License {
         timer.cancel();
     }
 
-    public void setMax(int a, int b) {
+    public void setPerSec(int a) {
         this.MAX_MSG_IN_SECOND = a;
-        this.MAX_NUM_MESSAGE = b;
+    }
+
+    public void setMAX(int a) {
+        this.MAX_NUM_MESSAGE = a;
     }
 
     public void increaseMsg() {
