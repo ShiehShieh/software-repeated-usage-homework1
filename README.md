@@ -17,6 +17,9 @@
 
 [https://github.com/ShiehShieh/software-reuse-group-Components.git](https://github.com/ShiehShieh/software-reuse-group-Components.git)
 
+## 可复用构建仓库
+可复用构件Java包，在本项目UsableComponents文件夹下。
+
 ##CM Configuration management
 
 * 编码：徐锦程
