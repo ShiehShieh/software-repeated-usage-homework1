@@ -2,11 +2,12 @@ package Client;
 
 import org.json.JSONException;
 
-import CM.GetConfiguration;
+import wheellllll.config.Config;
 import PM.CheckCount;
 import PM.IOLog;
 import PM.Logger;
 import MessageUtils.Message;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -24,9 +25,10 @@ import java.util.Timer;
  */
 public class Client  extends Socket {
 
-    private static GetConfiguration getConfiguration = new GetConfiguration();
-    private static String SERVER_IP = getConfiguration.getSERVER_IP();
-    private static int SERVER_PORT = getConfiguration.getSERVER_PORT();
+   //CM构件重用，读取配置文件信息SERVER_IP
+    private static String SERVER_IP = Config.getConfig().getString("SERVER_IP");
+  //CM构件重用，读取配置文件信息SERVER_PORT
+    private static int SERVER_PORT = Config.getConfig().getInt("SERVER_PORT");
     private static Object loginLock = new Object();
 
     private Socket client;
@@ -74,6 +76,7 @@ public class Client  extends Socket {
      * 与服务器连接，并输入发送消息
      */
     public  Client()throws Exception{
+    	
         super(SERVER_IP, SERVER_PORT);
         client =this;
         Message msg;
@@ -270,6 +273,9 @@ public class Client  extends Socket {
     }
 
     public static void main(String[] args) {
+    	//CM构件重用，设置配置文件路径
+    	//路径在当前目录下
+    	Config.setConfigName("./application.conf"); 
         try {
             new Client();//启动客户端
         }catch (Exception e) {
