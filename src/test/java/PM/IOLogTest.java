@@ -3,20 +3,18 @@ package PM;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Created by shieh on 3/23/16.
- */
+import static org.junit.Assert.*;
+
 public class IOLogTest {
 
-    IOLog ioLog;
-
+    public IOLog ioLog;
     @Before
     public void setUp() throws Exception {
-        ioLog = new IOLog("test.log", true);
+        ioLog = new IOLog("pathTest.log",true);
     }
 
     @Test
-    public void IOWrite() throws Exception {
-        ioLog.IOWrite("test.");
+    public void testIOWrite() throws Exception {
+        ioLog.IOWrite("test");
     }
 }
