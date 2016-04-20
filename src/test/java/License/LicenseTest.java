@@ -103,4 +103,58 @@ public class LicenseTest {
 
         System.out.println(license.checkTotalMsg());
     }
+
+    @Test
+    public void testsetPerSec() {
+
+        int i = 0;
+
+        System.out.println(license.checkMsgInSecond());
+
+        for (i = 0; i < 3; ++i) {
+            license.increaseMsg();
+        }
+
+        System.out.println(license.checkMsgInSecond());
+
+        license.setPerSec(1);
+
+        i = 0;
+
+        System.out.println(license.checkMsgInSecond());
+
+        for (i = 0; i < 2; ++i) {
+            license.increaseMsg();
+        }
+
+        System.out.println(license.checkMsgInSecond());
+
+    }
+
+    @Test
+    public void testsetMAX() {
+
+        int i = 0;
+
+        System.out.println(license.checkTotalMsg());
+
+        for (i = 0; i < 3; ++i) {
+            license.increaseMsg();
+        }
+
+        System.out.println(license.checkTotalMsg());
+
+        license.setMAX(1);
+
+        i = 0;
+
+        System.out.println(license.checkTotalMsg());
+
+        for (i = 0; i < 2; ++i) {
+            license.increaseMsg();
+        }
+
+        System.out.println(license.checkTotalMsg());
+
+    }
 }
