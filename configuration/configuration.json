@@ -1,12 +1,12 @@
 {
 	"mutable" : {
-		"MAX_MESSAGE_PER_SECOND" : 5 ,
-		"MAX_MESSAGE_FOR_TOTAL" : 10 ,
+		"MAX_MESSAGE_PER_SECOND" : 15 ,
+		"MAX_MESSAGE_FOR_TOTAL" : 110 ,
 	},
 	"immutable" :{
 		"SERVER_IP" : "127.0.0.1" ,
 		"SERVER_PORT" : 2095 ,	
 		"DBUSER" : "root" ,
-		"DBPW" : "root"
+		"DBPW" : "510894"
 	}
 }
