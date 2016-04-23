@@ -42,7 +42,6 @@ public class SaveToFile {
 			//System.out.println("directory");
 		}
 		
-		
 		path=directoryPath+"\\history.txt";
 		File file = new File(path);
 		if(!file.exists()){
@@ -50,10 +49,7 @@ public class SaveToFile {
 			if(!res)
 				System.out.println("创建文件失败！");
 		}
-		 
 		writer = new BufferedWriter(new FileWriter(path));
-		
-		
 	}
 	
 	public void write(String str){
@@ -70,7 +66,6 @@ public class SaveToFile {
 	protected void finalized(){
 		if(writer != null){
 			try {
-				
 				writer.close();
 			} catch (IOException e) {
 				e.printStackTrace();
