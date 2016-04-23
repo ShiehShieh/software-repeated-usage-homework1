@@ -1,3 +1,4 @@
+package CM;
 
 
 import java.io.BufferedReader;
@@ -25,6 +26,7 @@ public class GetConfiguration {
 	private int SERVER_PORT;
 	private int MAX_MESSAGE_PER_SECOND;
 	private int MAX_MESSAGE_FOR_TOTAL;
+	private String PATH;
 	private String DBUSER;
 	private String DBPW;
 	private JSONObject jsonObject,jsonObjectMutable,jsonObjectImmutable;
@@ -41,7 +43,7 @@ public class GetConfiguration {
 	}
 	
 	
-	//½âÎöJSON,½«µÃµ½µÄËùÓÐÅäÖÃÐÅÏ¢´æ´¢ÔÚË½ÓÐ±äÁ¿ÖÐ
+	//ï¿½ï¿½ï¿½ï¿½JSON,ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½æ´¢ï¿½ï¿½Ë½ï¿½Ð±ï¿½ï¿½ï¿½ï¿½ï¿½
 	public void GetConfigurationInfo() throws JSONException{
 		content = ReadJSONFile("configuration.json");  
 		jsonObject = new JSONObject(content);
@@ -50,6 +52,7 @@ public class GetConfiguration {
 		
 		MAX_MESSAGE_PER_SECOND = jsonObjectMutable.getInt("MAX_MESSAGE_PER_SECOND");
 		MAX_MESSAGE_FOR_TOTAL = jsonObjectMutable.getInt("MAX_MESSAGE_FOR_TOTAL");
+		PATH = jsonObjectMutable.getString("PATH");
 		
 		jsonObjectImmutable = jsonObject.getJSONObject("immutable");
 		
@@ -63,7 +66,7 @@ public class GetConfiguration {
 //		"\n"+DBUSER+"\n"+DBPW);
 	}
 	
-	//¶ÁÈ¡ÎÄ¼þ£¬½«ÎÄ¼þÄÚÈÝÒÔ×Ö·û´®ÐÎÊ½·µ»Ø
+	//ï¿½ï¿½È¡ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½
 	public String ReadJSONFile(String Path){     
 		
 		BufferedReader reader = null;
@@ -95,7 +98,7 @@ public class GetConfiguration {
 	}
 	
 	
-	//½«Ö¸¶¨µÄÅäÖÃÐÅÏ¢Ð´ÈëÖ¸¶¨ÎÄ¼þÖÐ
+	//ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢Ð´ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½
 	public void writeJSONFile(String path,String[] key,String[] value){
 		BufferedWriter writer = null;
 		StringBuilder str = new StringBuilder();
@@ -131,8 +134,8 @@ public class GetConfiguration {
 		
 	}
 	
-	//²éÑ¯½Ó¿Ú£¬¸ù¾ÝkeyÖµ²éÑ¯¶ÔÓ¦µÄvalue
-	//·µ»ØÖµÎªstringÀàÐÍ
+	//ï¿½ï¿½Ñ¯ï¿½Ó¿Ú£ï¿½ï¿½ï¿½ï¿½ï¿½keyÖµï¿½ï¿½Ñ¯ï¿½ï¿½Ó¦ï¿½ï¿½value
+	//ï¿½ï¿½ï¿½ï¿½ÖµÎªstringï¿½ï¿½ï¿½ï¿½
 	public String getStringByKey(String key){
 		String value = null;
 		String value1 = null,value2 = null;
@@ -145,7 +148,7 @@ public class GetConfiguration {
 		return value;
 	}
 	
-	//·µ»ØÖµÎªintÀàÐÍ
+	//ï¿½ï¿½ï¿½ï¿½ÖµÎªintï¿½ï¿½ï¿½ï¿½
 	public int getIntByKey(String key){
 		int value = 0;
 		int value1 = 0,value2 = 0;
@@ -159,7 +162,7 @@ public class GetConfiguration {
 	}
 	
 
-	//¶¯Ì¬¼ÓÔØÅäÖÃÐÅÏ¢
+	//ï¿½ï¿½Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢
 	public void load() throws JSONException{
 		content = ReadJSONFile("configuration.json");  
 		jsonObject = new JSONObject(content);
@@ -173,7 +176,7 @@ public class GetConfiguration {
 	
 	public void loadData(){
 		timer = new Timer();
-		//30s¶ÁÈ¡Ò»´Î
+		//30sï¿½ï¿½È¡Ò»ï¿½ï¿½
 		timer.schedule(new LoadFileTimerTask(), 0,30000);
 	}
 
@@ -214,6 +217,10 @@ public class GetConfiguration {
 		return SERVER_PORT;
 	}
 
+	public String getPATH(){
+		return PATH;
+	}
+	
 	public int getMAX_MESSAGE_PER_SECOND() {
 		return MAX_MESSAGE_PER_SECOND;
 	}

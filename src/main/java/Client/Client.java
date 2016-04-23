@@ -6,6 +6,8 @@ import wheellllll.config.Config;
 import PM.CheckCount;
 import PM.IOLog;
 import PM.Logger;
+import CM.GetConfiguration;
+import File.SaveToFile;
 import MessageUtils.Message;
 
 import java.io.BufferedReader;
@@ -24,11 +26,11 @@ import java.util.Timer;
  * Created by Xiemingyue & Jipengyue on 3/29/16.
  */
 public class Client  extends Socket {
-
+    private static GetConfiguration g = new GetConfiguration(); 
    //CM构件重用，读取配置文件信息SERVER_IP
-    private static String SERVER_IP = Config.getConfig().getString("SERVER_IP");
+    private static String SERVER_IP = g.getSERVER_IP();
   //CM构件重用，读取配置文件信息SERVER_PORT
-    private static int SERVER_PORT = Config.getConfig().getInt("SERVER_PORT");
+    private static int SERVER_PORT = g.getSERVER_PORT();
     private static Object loginLock = new Object();
 
     private Socket client;
@@ -64,6 +66,8 @@ public class Client  extends Socket {
     private CheckCount countLogin;
     //计数器：消息
     private CheckCount countMsg;
+    //保存聊天信息
+    private SaveToFile saveToFile;
 
     //use in csLogin
     //private Logger logger;
@@ -97,7 +101,8 @@ public class Client  extends Socket {
 //        logger.addCountType(login_fail);
 //        logger.setTime(0, 60000);
 //        logger.commence();
-
+        saveToFile = new SaveToFile(g.getPATH());
+        
         readLineThread rt = new readLineThread();
 
         stdinFlag = false;
@@ -110,6 +115,8 @@ public class Client  extends Socket {
                 msg.setValue("msg", input);
                 msg.setValue("event", "message");
                 out.println(msg);
+                //存储到文件
+                saveToFile.write(nameForFile+": "+input);
                 countMsg.addCount(send_msg);
 
             }
@@ -257,6 +264,7 @@ public class Client  extends Socket {
                     } else if (msgClient.getValue("event").equals("message")) { //输出服务端发送消息
                         System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
                         //如果收到了消息
+                        saveToFile.write(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
                         countMsg.addCount(receive_msg);
                     }
                     synchronized (stdinLock) {
@@ -273,9 +281,7 @@ public class Client  extends Socket {
     }
 
     public static void main(String[] args) {
-    	//CM构件重用，设置配置文件路径
-    	//路径在当前目录下
-    	Config.setConfigName("./application.conf"); 
+    	
         try {
             new Client();//启动客户端
         }catch (Exception e) {
