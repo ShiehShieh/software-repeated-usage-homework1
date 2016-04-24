@@ -3,7 +3,7 @@ package MessageUtils;
 import com.rabbitmq.client.*;
 import org.json.JSONException;
 import org.json.JSONObject;
-import PM.Logger;
+import wheellllll.performance.IntervalLogger;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -11,14 +11,14 @@ import java.io.PrintWriter;
 class MessageConsumer extends DefaultConsumer {
     Message msg;
     private PrintWriter out;
-    private Logger logger;
+    private IntervalLogger pm;
     private String logKey;
 
-    public MessageConsumer(Message msg, PrintWriter out, Logger logger, String logKey) {
+    public MessageConsumer(Message msg, PrintWriter out, IntervalLogger pm, String logKey) {
         super(msg.getChannel());
         this.msg = msg;
         this.out = out;
-        this.logger = logger;
+        this.pm = pm;
         this.logKey = logKey;
         return;
     }
@@ -36,7 +36,7 @@ class MessageConsumer extends DefaultConsumer {
             queueName = new JSONObject(message).getString("queueName");
             if (!queueName.equals(msg.getQueueName())) {
                 sendMessage(message);
-                logger.addCount(logKey);
+                pm.updateIndex(logKey, 1);
             }
         } catch (JSONException e) {
         }
@@ -48,8 +48,14 @@ class MessageConsumer extends DefaultConsumer {
  * Created by shieh on 3/31/16.
  */
 public class MessageDeparturer {
-    public MessageDeparturer(Message msg, PrintWriter out, Logger logger, String logKey) throws IOException {
-        Consumer consumer = new MessageConsumer(msg, out, logger, logKey);
+    private PrintWriter fp;
+
+    public MessageDeparturer(Message msg, PrintWriter out, IntervalLogger pm, String logKey) throws IOException {
+        Consumer consumer = new MessageConsumer(msg, out, pm, logKey);
         msg.getChannel().basicConsume(msg.getQueueName(), true, consumer);
+    }
+
+    public void logging(Message msg) {
+        fp.println(msg);
     }
 }

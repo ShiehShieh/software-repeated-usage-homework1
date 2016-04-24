@@ -4,6 +4,8 @@ import PM.Logger;
 import MessageUtils.Message;
 import org.json.JSONException;
 import DataSource.DataSource;
+import utils.Pair;
+import wheellllll.performance.IntervalLogger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -25,10 +27,10 @@ public class Verification {
         return this.password;
     }
 
-    public void login(BufferedReader in, PrintWriter out, DataSource dataSource, Logger logger,
-                      String valid_login_per_min, String invalid_login_per_min, long threadId)throws IOException {
+    public Pair<Integer, Integer> login(BufferedReader in, PrintWriter out, DataSource dataSource, long threadId)throws IOException {
         String line;
         Message msg;
+        Pair<Integer, Integer> res = new Pair<Integer, Integer>(0, 0);
 
         while(true) {
             try {
@@ -40,12 +42,12 @@ public class Verification {
                 username = msg.getValue("username");
                 password = msg.getValue("password");
                 if (password.equals(dataSource.getPasswordDB(username))) {
-                    logger.addCount(valid_login_per_min);
+                    res.setL(1);
                     msg.setValue("event", "valid");
                     out.println(msg);
                     break;
                 } else {
-                    logger.addCount(invalid_login_per_min);
+                    res.setR(res.getR()+1);
                     msg.setValue("event", "invalid");
                     out.println(msg);
                 }
@@ -54,7 +56,7 @@ public class Verification {
             }
         }
 
-        return;
+        return res;
     }
 
     public void csLogin(BufferedReader in, PrintWriter out, DataSource dataSource, Logger logger, String valid_login, String invalid_login){

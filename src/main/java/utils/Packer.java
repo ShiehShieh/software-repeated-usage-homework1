@@ -1,6 +1,7 @@
 package utils;
 
 import java.io.*;
+import java.util.TimerTask;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -56,4 +57,17 @@ public class Packer {
         packer.packupSuffix(".docx");
     }
 
+}
+
+
+class PackerTimer extends TimerTask {
+    private String logFile;
+
+    public PackerTimer(String logFilename) {
+        this.logFile = logFilename;
+    }
+
+    public void run() {
+        return;
+    }
 }
