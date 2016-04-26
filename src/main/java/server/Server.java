@@ -60,17 +60,12 @@ public class Server extends ServerSocket {
             pm = new IntervalLogger();
             pm.setLogDir(this.logDir);   //设置输出文件的路径
             pm.setLogPrefix("Server");  //设置输出的文件名
-            pm.setInterval(1, TimeUnit.MINUTES);   //时间单位为秒
+            pm.setInterval(1, TimeUnit.SECONDS);   //时间单位为秒
             pm.addIndex(valid_login_per_min);
             pm.addIndex(invalid_login_per_min);
             pm.addIndex(received_msg);
             pm.addIndex(ignored_msg);
             pm.addIndex(forwarded_msg);
-            pm.setFormatPattern("Valid Login Number : ${" + valid_login_per_min + "}\n" +
-                    "Invalid Login Number : ${" + invalid_login_per_min + "}\n" +
-                    "The number of received msg : ${" + received_msg + "}\n" +
-                    "The number of ignored msg : ${" + ignored_msg + "}\n" +
-                    "The number of forwarded msg : ${" + forwarded_msg + "}\n\n");
 
             messageLogger.setLogDir("./llog");
             messageLogger.setLogPrefix("msg");
@@ -221,7 +216,7 @@ public class Server extends ServerSocket {
         int SERVER_PORT = getConfiguration.getSERVER_PORT();
         String logDirname = "./log";
         String dbuser = "root";
-        String dbpw = "510894";
+        String dbpw = "root";
         Server server = new Server(SERVER_PORT, logDirname, dbuser, dbpw, true);//启动服务端
         server.run();
     }
