@@ -1,16 +1,18 @@
-package Client;
+package src.main.java.Client;
 
 import org.json.JSONException;
 
-import utils.Packer;
+import src.main.java.utils.PackPerDay;
+import src.main.java.utils.PackPerWeek;
+import src.main.java.utils.Packer;
 import wheellllll.config.Config;
 import wheellllll.performance.ArchiveManager;
 import wheellllll.performance.RealtimeLogger;
-import PM.CheckCount;
-import PM.IOLog;
+import src.main.java.PM.CheckCount;
+import src.main.java.PM.IOLog;
 import PM.Logger;
-import CM.GetConfiguration;
-import File.SaveToFile;
+import src.main.java.CM.GetConfiguration;
+import src.main.java.File.SaveToFile;
 import MessageUtils.Message;
 
 import java.io.BufferedReader;
@@ -20,10 +22,7 @@ import java.net.Socket;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Timer;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -71,10 +70,10 @@ public class Client  extends Socket {
     //计数器：消息
     private CheckCount countMsg;
     //保存聊天信息
-    //private SaveToFile saveToFile;
-    //private Packer packer;
-    RealtimeLogger logger;
-    ArchiveManager am;
+    private SaveToFile saveToFile;
+    private Packer packer;
+//    RealtimeLogger logger;
+//    ArchiveManager am;
     HashMap<String, String> mapLog = new HashMap<>();
     //use in csLogin
     //private Logger logger;
@@ -108,19 +107,31 @@ public class Client  extends Socket {
 //        logger.addCountType(login_fail);
 //        logger.setTime(0, 60000);
 //        logger.commence();
-        //saveToFile = new SaveToFile(g.getPATH());
-        logger = new RealtimeLogger();
-        logger.setLogDir("./log");
-        logger.setLogPrefix("test");
-        logger.setFormatPattern("Username : ${username}\nTime : ${time}\nMessage : ${message}\n\n");
-       
-        am = new ArchiveManager();
-        am.setArchiveDir("./archive");
-        am.setDatePattern("yyyy-MM-dd HH:mm");
-        am.addLogger(logger);
-        am.setInterval(1, TimeUnit.DAYS);
-        am.start();
-        
+        saveToFile = new SaveToFile("./log/client/");
+        PackPerDay packPerDay = new PackPerDay("./log/client","./archive/day/");
+        PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
+        Timer timer;
+        timer = new Timer();
+        timer.schedule(packPerDay,86400000,86400000);
+
+        Timer timer2;
+        timer2 = new Timer();
+        timer2.schedule(packPerWeek,86400000*7,86400000*7);
+
+
+
+//        logger = new RealtimeLogger();
+//        logger.setLogDir("./log");
+//        logger.setLogPrefix("test");
+//        logger.setFormatPattern("Username : ${username}\nTime : ${time}\nMessage : ${message}\n\n");
+
+//        am = new ArchiveManager();
+//        am.setArchiveDir("./archive");
+//        am.setDatePattern("yyyy-MM-dd HH:mm");
+//        am.addLogger(logger);
+//        am.setInterval(1, TimeUnit.DAYS);
+//        am.start();
+
         
         readLineThread rt = new readLineThread();
 
@@ -137,9 +148,10 @@ public class Client  extends Socket {
                 //存储到文件
                 //saveToFile.write(nameForFile+": "+input);
                 mapLog.put("username", nameForFile);
-                mapLog.put("time", "2016-04-24");
+                mapLog.put("time", new Date().toString());
                 mapLog.put("message", input);
-                logger.log(mapLog);
+                saveToFile.write(mapLog.toString());
+                //logger.log(mapLog);
                 countMsg.addCount(send_msg);
 
             }
@@ -147,9 +159,9 @@ public class Client  extends Socket {
     }
     
     protected void finalized(){
-		if(am != null){
-			am.stop();
-		}
+//		if(am != null){
+//			am.stop();
+//		}
 	}
 
     //创建文件
@@ -294,10 +306,11 @@ public class Client  extends Socket {
                         System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
                         //如果收到了消息
                         mapLog.put("username", msgClient.getValue("username"));
-                        mapLog.put("time", "2016-04-24");
+                        mapLog.put("time", new Date().toString());
                         mapLog.put("message", msgClient.getValue("msg"));
-                        logger.log(mapLog);
-                        //saveToFile.write(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
+                        //logger.log(mapLog);
+                        System.out.println(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
+                        saveToFile.write(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
                         countMsg.addCount(receive_msg);
                     }
                     synchronized (stdinLock) {
