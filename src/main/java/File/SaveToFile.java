@@ -12,6 +12,7 @@ public class SaveToFile {
 	private String path;
 	BufferedWriter writer;
 	GetConfiguration g;
+	private String directoryPath;
 	public SaveToFile(){
 		g = new GetConfiguration();
 		path = g.getPATH();
@@ -35,12 +36,13 @@ public class SaveToFile {
 	
 	public void getBufferedWriter() throws IOException{
 		long timestamp = System.currentTimeMillis();
-		String directoryPath = path+"\\"+timestamp;
+		directoryPath = path+"\\"+timestamp;
 		File directory = new File(directoryPath);
 		if(!directory.exists()&&!directory.isDirectory()){
 			directory.mkdir();
 			//System.out.println("directory");
 		}
+		
 		
 		path=directoryPath+"\\history.txt";
 		File file = new File(path);
@@ -49,7 +51,10 @@ public class SaveToFile {
 			if(!res)
 				System.out.println("创建文件失败！");
 		}
+		 
 		writer = new BufferedWriter(new FileWriter(path));
+		
+		
 	}
 	
 	public void write(String str){
@@ -63,9 +68,14 @@ public class SaveToFile {
 		}
 	}
 	
+	public String getDirectoryPath(){
+		return directoryPath;
+	}
+	
 	protected void finalized(){
 		if(writer != null){
 			try {
+				
 				writer.close();
 			} catch (IOException e) {
 				e.printStackTrace();
