@@ -1,9 +1,7 @@
-package src.main.java.utils;
+package PackerUtils;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.sql.Time;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimerTask;

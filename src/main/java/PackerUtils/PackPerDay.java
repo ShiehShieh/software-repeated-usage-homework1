@@ -1,6 +1,5 @@
-package src.main.java.utils;
+package PackerUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
