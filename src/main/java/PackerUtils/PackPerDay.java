@@ -34,6 +34,10 @@ public class PackPerDay extends TimerTask {
     private String oPath;
 
     public PackPerDay(String iPath, String oPath){
+        File directory = new File(oPath);
+        if(!directory.exists()&&!directory.isDirectory()){
+            directory.mkdir();
+        }
         this.iPath = iPath;
         this.oPath = oPath;
     }

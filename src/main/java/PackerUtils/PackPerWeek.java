@@ -14,13 +14,24 @@ public class PackPerWeek extends TimerTask{
     private String oPath;
 
     public PackPerWeek(String iPath, String oPath){
+        File directory = new File(oPath);
+        if(!directory.exists()&&!directory.isDirectory()){
+            directory.mkdir();
+        }
+
         this.iPath = iPath;
         this.oPath = oPath;
     }
 
     public static void main(String[] args) {
-        PackPerWeek pack = new PackPerWeek("./archive/day/","./archive/week/");
-        pack.run();
+        String iPa = "./archive/day/";
+        File directory = new File(iPa);
+        if(!directory.exists()&&!directory.isDirectory()){
+            directory.mkdir();
+            //System.out.println("directory");
+        }
+//        PackPerWeek pack = new PackPerWeek("./archive/day/","./archive/week/");
+//        pack.run();
     }
 
         @Override
