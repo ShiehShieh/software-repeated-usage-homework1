@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream:src/main/java/PackerUtils/Packer.java
 package PackerUtils;
+=======
+package src.main.java.utils;
+>>>>>>> Stashed changes:src/main/java/utils/Packer.java
 
 import java.io.*;
 import java.util.TimerTask;
@@ -51,6 +55,7 @@ public class Packer {
         zos.closeEntry();
         fis.close();
     }
+
 
     public static void main(String[] args) throws IOException {
         Packer packer = new Packer("/Users/huangli/Documents/IntelliJ/software-reuse-group/doc", "/Users/huangli/Documents/IntelliJ/software-reuse-group/doc/test.zip");
