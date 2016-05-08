@@ -2,8 +2,8 @@ package src.main.java.Client;
 
 import org.json.JSONException;
 
-import src.main.java.PackerUtils.PackPerDay;
-import src.main.java.PackerUtils.PackPerWeek;
+import src.main.java.utils.PackPerDay;
+import src.main.java.utils.PackPerWeek;
 import wheellllll.config.Config;
 import wheellllll.performance.IntervalLogger;
 import MessageUtils.Message;
