@@ -1,4 +1,4 @@
-package PackerUtils;
+package src.main.java.PackerUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,18 +23,7 @@ public class PackPerWeek extends TimerTask{
         this.oPath = oPath;
     }
 
-    public static void main(String[] args) {
-        String iPa = "./archive/day/";
-        File directory = new File(iPa);
-        if(!directory.exists()&&!directory.isDirectory()){
-            directory.mkdir();
-            //System.out.println("directory");
-        }
-//        PackPerWeek pack = new PackPerWeek("./archive/day/","./archive/week/");
-//        pack.run();
-    }
-
-        @Override
+    @Override
     public void run() {
         File[] files = new File(iPath).listFiles();
         for(int i=0; i<files.length; i++){
