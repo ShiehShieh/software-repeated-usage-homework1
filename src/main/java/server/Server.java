@@ -5,11 +5,10 @@ import DataSource.DataSource;
 import File.SaveToFile;
 import MessageUtils.Message;
 import MessageUtils.MessageDeparturer;
-
 import PackerUtils.PackPerDay;
 import PackerUtils.PackPerWeek;
-import utils.Pair;
-import utils.Room;
+import PackerUtils.Pair;
+import PackerUtils.Room;
 import wheellllll.performance.*;
 import wheellllll.license.*;
 import wheellllll.config.*;
@@ -40,9 +39,9 @@ public class Server extends ServerSocket {
 
     private IntervalLogger pm;
     private HashMap<String, String> logMap = new HashMap<>();
-    private RealtimeLogger messageLogger = new RealtimeLogger();
-    private ArchiveManager am = new ArchiveManager();
-    private SaveToFile saveToFile;
+    private RealtimeLogger messageLogger;
+    private Logger loggerPM;
+    private Logger loggerMessage;
 
     public String valid_login_per_min = "validLogin";
     public String invalid_login_per_min = "invalidLogin";
@@ -77,21 +76,24 @@ public class Server extends ServerSocket {
             pm.addIndex(received_msg);
             pm.addIndex(ignored_msg);
             pm.addIndex(forwarded_msg);
+            
+            loggerPM = new IntervalLogger();
+            loggerPM.setMaxFileSize(100, Logger.SizeUnit.KB); //第一个参数是数值，第二个参数是单位
+            loggerPM.setMaxTotalSize(20, Logger.SizeUnit.MB); //第一个参数是数值，第二个参数是单位
 
+            messageLogger= new RealtimeLogger();
             messageLogger.setLogDir("./llog");
             messageLogger.setLogPrefix("msg");
             messageLogger.setFormatPattern("Username : ${username}\nTime : ${time}\nMessage : ${message}\n\n");
 
-            am.setArchiveDir("./archive");
-            am.setDatePattern("yyyy-MM-dd HH:mm");
-            am.addLogger(pm);
-            am.addLogger(messageLogger);
-            am.setInterval(1, TimeUnit.SECONDS);
-
+            loggerMessage = new RealtimeLogger();
+            loggerMessage.setMaxFileSize(100, Logger.SizeUnit.KB); 
+            loggerMessage.setMaxTotalSize(20, Logger.SizeUnit.MB); 
+            
+            
             pm.start();
-            am.start();
-
-            saveToFile = new SaveToFile("./log/server/");
+            
+            
             PackPerDay packPerDay = new PackPerDay("./log/server","./archive/day/");
             PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
             Timer timer;
@@ -112,7 +114,6 @@ public class Server extends ServerSocket {
         }finally{
             close();
             pm.stop();
-            am.stop();
         }
     }
 
