@@ -5,10 +5,11 @@ import DataSource.DataSource;
 import File.SaveToFile;
 import MessageUtils.Message;
 import MessageUtils.MessageDeparturer;
+
 import PackerUtils.PackPerDay;
 import PackerUtils.PackPerWeek;
-import PackerUtils.Pair;
-import PackerUtils.Room;
+import utils.Pair;
+import utils.Room;
 import wheellllll.performance.*;
 import wheellllll.license.*;
 import wheellllll.config.*;
@@ -39,9 +40,10 @@ public class Server extends ServerSocket {
 
     private IntervalLogger pm;
     private HashMap<String, String> logMap = new HashMap<>();
-    private RealtimeLogger messageLogger;
-    private Logger loggerPM;
-    private Logger loggerMessage;
+    private RealtimeLogger messageLogger = new RealtimeLogger();
+    // private ArchiveManager am = new ArchiveManager();
+    private SaveToFile saveToFile;
+    private int secondsOfDay = 86400000;
 
     public String valid_login_per_min = "validLogin";
     public String invalid_login_per_min = "invalidLogin";
@@ -68,6 +70,8 @@ public class Server extends ServerSocket {
     public void run() throws IOException {
         if (withLog) {
             pm = new IntervalLogger();
+            pm.setMaxFileSize(500, Logger.SizeUnit.KB); //第一个参数是数值，第二个参数是单位
+            pm.setMaxTotalSize(200, Logger.SizeUnit.MB); //第一个参数是数值，第二个参数是单位
             pm.setLogDir(this.logDir);   //设置输出文件的路径
             pm.setLogPrefix("Server");  //设置输出的文件名
             pm.setInterval(1, TimeUnit.SECONDS);   //时间单位为秒
@@ -76,33 +80,36 @@ public class Server extends ServerSocket {
             pm.addIndex(received_msg);
             pm.addIndex(ignored_msg);
             pm.addIndex(forwarded_msg);
-            
-            loggerPM = new IntervalLogger();
-            loggerPM.setMaxFileSize(100, Logger.SizeUnit.KB); //第一个参数是数值，第二个参数是单位
-            loggerPM.setMaxTotalSize(20, Logger.SizeUnit.MB); //第一个参数是数值，第二个参数是单位
 
-            messageLogger= new RealtimeLogger();
             messageLogger.setLogDir("./llog");
             messageLogger.setLogPrefix("msg");
             messageLogger.setFormatPattern("Username : ${username}\nTime : ${time}\nMessage : ${message}\n\n");
 
-            loggerMessage = new RealtimeLogger();
-            loggerMessage.setMaxFileSize(100, Logger.SizeUnit.KB); 
-            loggerMessage.setMaxTotalSize(20, Logger.SizeUnit.MB); 
-            
-            
+            // am.setArchiveDir("./archive");
+            // am.setDatePattern("yyyy-MM-dd HH:mm");
+            // am.addLogger(pm);
+            // am.addLogger(messageLogger);
+            // am.setInterval(1, TimeUnit.SECONDS);
+            PackPerWeek msgArchive = new PackPerWeek("./llog","./archive/");
+            Timer msgArchiveTimer = new Timer();
+            msgArchiveTimer.schedule(msgArchive,secondsOfDay*7,secondsOfDay*7);
+            PackPerWeek pmArchive = new PackPerWeek(this.logDir,"./archive/");
+            Timer pmArchiveTimer = new Timer();
+            pmArchiveTimer.schedule(pmArchive,secondsOfDay*7,secondsOfDay*7);
+
             pm.start();
-            
-            
+            // am.start();
+
+            saveToFile = new SaveToFile("./log/server/");
             PackPerDay packPerDay = new PackPerDay("./log/server","./archive/day/");
             PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
             Timer timer;
             timer = new Timer();
-            timer.schedule(packPerDay,86400000,86400000);
+            timer.schedule(packPerDay,secondsOfDay,secondsOfDay);
 
             Timer timer2;
             timer2 = new Timer();
-            timer2.schedule(packPerWeek,86400000*7,86400000*7);
+            timer2.schedule(packPerWeek,secondsOfDay*7,secondsOfDay*7);
         }
 
         try {
@@ -114,6 +121,7 @@ public class Server extends ServerSocket {
         }finally{
             close();
             pm.stop();
+            // am.stop();
         }
     }
 
@@ -252,7 +260,7 @@ public class Server extends ServerSocket {
         System.out.println(port);
         String logDirname = "./log";
         String dbuser = "root";
-        String dbpw = "510894";
+        String dbpw = "root";
         Server server = new Server(port, logDirname, dbuser, dbpw, true, 10, 10);//启动服务端
         server.run();
     }

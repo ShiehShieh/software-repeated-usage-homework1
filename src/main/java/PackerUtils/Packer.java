@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream:src/main/java/PackerUtils/Packer.java
 package PackerUtils;
-=======
-package src.main.java.utils;
->>>>>>> Stashed changes:src/main/java/utils/Packer.java
+
+import utils.FileUtils;
 
 import java.io.*;
 import java.util.TimerTask;
@@ -21,7 +19,7 @@ public class Packer {
         this.opath = opath;
     }
 
-    public void packupSuffix(String suffix) throws IOException {
+    public void packupSuffix(String suffix, boolean encryptIt) throws Exception {
         File [] files = new File(ipath).listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File dir, String name) {
@@ -39,6 +37,16 @@ public class Packer {
 
         zos.close();
         fos.close();
+
+        if (encryptIt) {
+            DESEncryptor td = new DESEncryptor();
+            try {
+                td.saveKey(td.key, new File(FileUtils.filenameWithoutExt(opath)+".key"));
+                td.encrypt(opath, opath); //加密
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static void addToZipFile(File file, ZipOutputStream zos) throws IOException {
@@ -55,13 +63,6 @@ public class Packer {
         zos.closeEntry();
         fis.close();
     }
-
-
-    public static void main(String[] args) throws IOException {
-        Packer packer = new Packer("/Users/huangli/Documents/IntelliJ/software-reuse-group/doc", "/Users/huangli/Documents/IntelliJ/software-reuse-group/doc/test.zip");
-        packer.packupSuffix(".docx");
-    }
-
 }
 
 
