@@ -7,6 +7,7 @@ import src.main.java.PackerUtils.PackPerWeek;
 import wheellllll.config.Config;
 import wheellllll.performance.IntervalLogger;
 import MessageUtils.Message;
+import wheellllll.performance.Logger;
 import wheellllll.performance.RealtimeLogger;
 
 import java.io.BufferedReader;
@@ -63,8 +64,8 @@ public class Client  extends Socket {
         pm.setLogSuffix("log");
         pm.setDateFormat("yyyy-MM-dd HH_mm_ss");
 
-//        pm.setMaxFileSize(100, pm.SizeUnit.KB);
-//        pm.setMaxTotalSize(1, pm.SizeUnit.MB);
+        pm.setMaxFileSize(100, IntervalLogger.SizeUnit.KB);
+        pm.setMaxTotalSize(1, IntervalLogger.SizeUnit.MB);
 
         pm.setInterval(1,TimeUnit.MINUTES);
         pm.setInitialDelay(1);
@@ -82,6 +83,10 @@ public class Client  extends Socket {
         pm_Msg.setLogDir(logDir + "/Msg/");
         pm_Msg.setLogPrefix("Msg");
         pm_Msg.setFormatPattern("Username : ${username}\nTime : ${time}\nMessage : ${message}\n\n");
+
+        pm_Msg.setMaxFileSize(100,RealtimeLogger.SizeUnit.KB);
+        pm_Msg.setMaxFileSize(1,RealtimeLogger.SizeUnit.MB);
+
 
         PackPerDay packPerDay = new PackPerDay("./log/client/Msg","./archive/day/");
         PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
