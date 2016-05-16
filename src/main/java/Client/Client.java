@@ -1,4 +1,4 @@
-package src.main.java.Client;
+﻿package src.main.java.Client;
 
 import org.json.JSONException;
 
@@ -48,6 +48,8 @@ public class Client  extends Socket {
 
     private RealtimeLogger pm_Msg;
     HashMap<String, String> mapLog = new HashMap<>();
+
+    private static List user_list = new ArrayList();	
 
     public  Client(String SERVER_IP, int SERVER_PORT, String logDir)throws Exception{
         super(SERVER_IP, SERVER_PORT);
@@ -220,7 +222,11 @@ public class Client  extends Socket {
                     //启动记录登录成功或失败的次数的计时器
                     //  if(msgClient.toString()!=null){
                     //  }
-                    if(msgClient.getValue("event").equals("quit")){//客户端申请退出，服务端返回确认退出
+		    if(msgClient.getValue("event").equals("list")){
+                    	String[] arr = msgClient.getValue("msg").split(",");
+                    	for(int i=0;i<arr.length;i++)
+                    		user_list.add(arr[i]);
+                    } else if(msgClient.getValue("event").equals("quit")){//客户端申请退出，服务端返回确认退出
                         pm.stop();
                         break;
                     } else if (msgClient.getValue("event").equals("login")) {
@@ -230,6 +236,10 @@ public class Client  extends Socket {
                         loginClient();
                     } else if (msgClient.getValue("event").equals("logedin")) {
                         System.out.println("user: "+msgClient.getValue("username")+" loged in.");
+			if(user_list.size()!=0)
+                        	user_list.add(msgClient.getValue("username"));
+                        for(int i=0;i<user_list.size();i++)
+                        	System.out.print(user_list.get(i)+" ");
                     } else if (msgClient.getValue("event").equals("message")) { //输出服务端发送消息
                         System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
                         //如果收到了消息
