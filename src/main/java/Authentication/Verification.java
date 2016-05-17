@@ -26,18 +26,18 @@ public class Verification {
         return this.password;
     }
 
-    public Pair<Integer, Integer> login(BufferedReader in, PrintWriter out, DataSource dataSource, long threadId)throws IOException {
+    public Pair<Integer, Integer> login(BufferedReader in, PrintWriter out, DataSource dataSource)throws IOException {
         String line;
         Message msg;
         Pair<Integer, Integer> res = new Pair<Integer, Integer>(0, 0);
 
         while(true) {
             try {
-                msg = new Message("{}", threadId);
+                msg = new Message("{}", "");
                 msg.setValue("event", "login");
                 out.println(msg);
                 line = in.readLine();
-                msg = new Message(line, threadId);
+                msg = new Message(line, "");
                 username = msg.getValue("username");
                 password = msg.getValue("password");
                 if (password.equals(dataSource.getPasswordDB(username))) {
@@ -65,11 +65,11 @@ public class Verification {
         if(loginType.equals("DB")) {
             while (true) {
                 try {
-                    msg = new Message("{}", 0);
+                    msg = new Message("{}", "");
                     msg.setValue("event", "login");
                     out.println(msg);
                     line = in.readLine();
-                    msg = new Message(line, 0);
+                    msg = new Message(line, "");
                     username = msg.getValue("username");
                     password = msg.getValue("password");
                     if (password.equals(dataSource.getPasswordDB(username))) {
@@ -98,12 +98,12 @@ public class Verification {
                     username =strin.readLine();
                     System.out.println("Please input the Password!\n");
                     password = strin.readLine();
-                    msg = new Message("{}",0);
+                    msg = new Message("{}", "");
                     msg.setValue("event","login");
                     msg.setValue("username",username);
                     msg.setValue("password",password);
                     line = dataSource.getPasswordResponse(msg.toString());
-                    msg = new Message(line,0);
+                    msg = new Message(line, "");
                     if(msg.getValue("event").equals("valid")){
                         logger.addCount(valid_login);
                         System.out.println("Login successfully!");

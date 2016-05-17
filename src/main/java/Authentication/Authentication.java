@@ -24,11 +24,11 @@ public class Authentication {
     public boolean authenticate(DataSource dataSource, String username, String password) throws IOException, JSONException {
         Message msg;
         if ("remote".equals(dataSource.getType())) {
-            msg = new Message("{}", 0);
+            msg = new Message("{}", "");
             msg.setValue("event", "login");
             msg.setValue("username", username);
             msg.setValue("password", password);
-            msg = new Message(dataSource.getPasswordResponse(msg.toString()), 0);
+            msg = new Message(dataSource.getPasswordResponse(msg.toString()), "");
             return "valid".equals(msg.getValue("event"));
         } else if ("DB".equals(dataSource.getType())) {
             return password.equals(dataSource.getPasswordDB(username));

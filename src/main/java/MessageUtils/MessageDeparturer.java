@@ -31,10 +31,16 @@ class MessageConsumer extends DefaultConsumer {
     public void handleDelivery(String consumerTag, Envelope envelope,
                                AMQP.BasicProperties properties, byte[] body) throws IOException {
         String message = new String(body, "UTF-8");
-        String queueName;
+        String queueName, target;
+        JSONObject jsonObject;
         try {
-            queueName = new JSONObject(message).getString("queueName");
-            if (!queueName.equals(msg.getQueueName())) {
+            jsonObject = new JSONObject(message);
+            queueName = jsonObject.getString("queueName");
+            target = jsonObject.getString("target");
+            if (target.equals("others") && !queueName.equals(msg.getQueueName())) {
+                sendMessage(message);
+                pm.updateIndex(logKey, 1);
+            } else if (target.equals("itself") && queueName.equals(msg.getQueueName())) {
                 sendMessage(message);
                 pm.updateIndex(logKey, 1);
             }
@@ -49,10 +55,21 @@ class MessageConsumer extends DefaultConsumer {
  */
 public class MessageDeparturer {
     private PrintWriter fp;
+    private Consumer consumer;
+    private String tag;
+    private Message msg;
 
     public MessageDeparturer(Message msg, PrintWriter out, IntervalLogger pm, String logKey) throws IOException {
-        Consumer consumer = new MessageConsumer(msg, out, pm, logKey);
-        msg.getChannel().basicConsume(msg.getQueueName(), true, consumer);
+        this.msg = msg;
+        consumer = new MessageConsumer(msg, out, pm, logKey);
+    }
+
+    public void beginConsumer() throws IOException {
+        tag = msg.getChannel().basicConsume(msg.getQueueName(), true, consumer);
+    }
+
+    public void cancelConsumer() throws IOException {
+        msg.getChannel().basicCancel(tag);
     }
 
     public void logging(Message msg) {

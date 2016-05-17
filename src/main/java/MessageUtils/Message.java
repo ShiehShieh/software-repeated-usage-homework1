@@ -1,5 +1,6 @@
 package MessageUtils;
 
+import com.rabbitmq.client.MessageProperties;
 import org.json.*;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Connection;
@@ -13,20 +14,20 @@ import java.util.concurrent.TimeoutException;
  * Created by shieh on 3/24/16.
  */
 public class Message {
-    private long ownerThread;
+    private String ownerThread;
     private JSONObject jsonObject;
     private ConnectionFactory factory;
     private Connection connection;
     private Channel channel;
     private String queueName;
 
-    public Message(String msg, long ownerThread) throws JSONException {
+    public Message(String msg, String username) throws JSONException {
         jsonObject = new JSONObject(msg);
-        this.ownerThread = ownerThread;
+        this.ownerThread = username;
         return;
     }
 
-    public long getOwner() {
+    public String getOwner() {
         return ownerThread;
     }
 
@@ -57,7 +58,7 @@ public class Message {
         factory.setHost(hostName);
         connection = factory.newConnection();
         channel = connection.createChannel();
-        channel.queueDeclare(queue_name, false, false, false, null);
+        channel.queueDeclare(queue_name, true, false, false, null);
         this.queueName = queue_name;
         return;
     }
@@ -77,19 +78,20 @@ public class Message {
         return channel;
     }
 
-    public void publishToOne(String exchangeName, String routerKey) throws IOException {
-        channel.basicPublish(exchangeName, routerKey, null, jsonObject.toString().getBytes());
+    public void publishToOne(String exchangeName, String routerKey) throws IOException, JSONException {
+        jsonObject.put("queueName", routerKey);
+        channel.basicPublish(exchangeName, routerKey, MessageProperties.PERSISTENT_TEXT_PLAIN, jsonObject.toString().getBytes());
         return;
     }
 
     public void publishToAll(String exchangeName) throws IOException, JSONException {
         jsonObject.put("queueName", queueName);
-        channel.basicPublish(exchangeName, "", null, jsonObject.toString().getBytes());
+        channel.basicPublish(exchangeName, "", MessageProperties.PERSISTENT_TEXT_PLAIN, jsonObject.toString().getBytes());
         return;
     }
 
     public void publishToOthers(String exchangeName, String routerKey) throws IOException {
-        channel.basicPublish(exchangeName, "!"+routerKey, null, jsonObject.toString().getBytes());
+        channel.basicPublish(exchangeName, "!"+routerKey, MessageProperties.PERSISTENT_TEXT_PLAIN, jsonObject.toString().getBytes());
         return;
     }
 

@@ -8,6 +8,7 @@ import MessageUtils.MessageDeparturer;
 
 import PackerUtils.PackPerDay;
 import PackerUtils.PackPerWeek;
+import org.json.JSONException;
 import utils.Pair;
 import utils.Room;
 import wheellllll.performance.*;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Timer;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Created by shieh on 3/20/16.
@@ -37,6 +39,7 @@ public class Server extends ServerSocket {
 
     private static List user_list = new ArrayList();//登录用户集合
     private static DataSource dataSource;
+    private HashMap<String,HashMap<String,Message>> allMsg;
 
     private IntervalLogger pm;
     private HashMap<String, String> logMap = new HashMap<>();
@@ -55,7 +58,7 @@ public class Server extends ServerSocket {
      * 创建服务端Socket,创建向客户端发送消息线程,监听客户端请求并处理
      */
     public Server(int SERVER_PORT, String logDirname, String dbuser, String dbpw, boolean withLog,
-                  int numRoom, int roomSize)throws IOException {
+                  int numRoom, int roomSize) throws IOException, TimeoutException, JSONException {
         super(SERVER_PORT);//创建ServerSocket
         this.logDir = logDirname;
         this.withLog = withLog;
@@ -65,6 +68,25 @@ public class Server extends ServerSocket {
         }
 
         dataSource = new DataSource(dbuser, dbpw);
+
+        Message msg;
+        HashMap<String,Message> user2msg;
+        allMsg = new HashMap<String,HashMap<String,Message>>();
+        ArrayList<Pair<String,String>> res = dataSource.getGroupUser();
+        for (Pair<String,String> p : res) {
+            msg = new Message("{}", p.getR());
+            msg.init(p.getR(), "localhost");
+            msg.bindTo(p.getL(), p.getR());
+            if (allMsg.containsKey(p.getL())) {
+                allMsg.get(p.getL()).put(p.getR(), msg);
+            } else {
+                user2msg = new HashMap<String,Message>();
+                user2msg.put(p.getR(), msg);
+                allMsg.put(p.getL(), user2msg);
+            }
+            System.out.println(p.getL());
+            System.out.println(p.getR());
+        }
     }
 
     public void run() throws IOException {
@@ -162,7 +184,7 @@ public class Server extends ServerSocket {
         public void run() {
             Pair<Integer, Integer> logStatus;
             try {
-                logStatus = verification.login(in, out, dataSource, this.getId());
+                logStatus = verification.login(in, out, dataSource);
                 pm.updateIndex(valid_login_per_min, logStatus.getL());
                 pm.updateIndex(invalid_login_per_min, logStatus.getR());
 
@@ -175,8 +197,6 @@ public class Server extends ServerSocket {
                 if (room == null) {
                 }
 
-                exchangeName = String.valueOf(room.getID());
-
                 username = verification.getUsername();
                 password = verification.getPassword();
                 License.Availability availability;
@@ -184,13 +204,18 @@ public class Server extends ServerSocket {
                     user_list.add(username);
                 }
 
-                queueName = String.valueOf(this.getId());
-                msg = new Message("{}", this.getId());
+                // queueName = String.valueOf(this.getId());
+                queueName = username;
+                for (String key : allMsg.keySet()) {
+                    if (allMsg.get(key).containsKey(username)) {
+                        exchangeName = key;
+                        msg = allMsg.get(key).get(username);
+                    }
+                }
                 msg.setValue("username", username);
                 msg.setValue("target", "others");
-                msg.init(queueName, "localhost");
-                msg.bindTo(exchangeName, queueName);
                 messageDeparturer = new MessageDeparturer(msg, out, pm, forwarded_msg);
+                messageDeparturer.beginConsumer();
                 msg.setValue("event", "logedin");
                 msg.publishToAll(exchangeName);
 
@@ -198,24 +223,31 @@ public class Server extends ServerSocket {
                 msg.reset(line);
                 while(!"logout".equals(msg.getValue("event"))) {
                     //查看在线用户列表
-                    if ("showuser".equals(msg.getValue("event"))) {
-                        out.println(listOnlineUsers());
-                    } else if ("message".equals(msg.getValue("event"))) {
+                    // if ("showuser".equals(msg.getValue("event"))) {
+                    if ("message".equals(msg.getValue("event"))) {
                         availability = license.use();
                         if (availability != License.Availability.THROUGHPUTEXCEEDED) {
-                            System.out.println(msg);
-                            msg.setValue("username", username);
-                            msg.setValue("event", "message");
-                            msg.setValue("target", "others");
-                            msg.publishToAll(exchangeName);
-                            messageLogger.log(msg.toString());
-                            pm.updateIndex(received_msg, 1);
+                            if ("c:showuser".equals(msg.getValue("msg"))) {
+                                messageLogger.log(msg.toString());
+                                msg.setValue("msg", listOnlineUsers());
+                                msg.setValue("event", "list");
+                                msg.setValue("target", "itself");
+                                msg.publishToOne(exchangeName, username);
+                                pm.updateIndex(received_msg, 1);
+                            } else {
+                                msg.setValue("username", username);
+                                msg.setValue("event", "message");
+                                msg.setValue("target", "others");
+                                msg.publishToAll(exchangeName);
+                                messageLogger.log(msg.toString());
+                                pm.updateIndex(received_msg, 1);
+                            }
                         } else {
                             pm.updateIndex(ignored_msg, 1);
                         }
                         if (availability == License.Availability.CAPACITYEXCEEDED) {
-                            out.println(new Message("{'event':'relogin','target':'itself'}", this.getId()));
-                            logStatus = verification.login(in, out, dataSource, this.getId());
+                            out.println(new Message("{'event':'relogin','target':'itself'}", username));
+                            logStatus = verification.login(in, out, dataSource);
                             pm.updateIndex(valid_login_per_min, logStatus.getL());
                             pm.updateIndex(invalid_login_per_min, logStatus.getR());
 
@@ -229,12 +261,14 @@ public class Server extends ServerSocket {
                 }
                 msg.setValue("target", "all");
                 msg.setValue("event", "quit");
+                msg.setValue("username", "quit");
                 msg.publishToAll(exchangeName);
             } catch (Exception e) {
                 e.printStackTrace();
             } finally { //用户退出聊天室
                 try {
                     client.close();
+                    messageDeparturer.cancelConsumer();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -243,16 +277,16 @@ public class Server extends ServerSocket {
 
         //统计在线用户列表
         private String listOnlineUsers() {
-            String s ="--- 在线用户列表 ---\015\012";
-            for (int i =0; i < user_list.size(); i++) {
-                s +="[" + user_list.get(i) +"]\015\012";
+            String s = "";
+            for (int i = 0; i < user_list.size()-1; i++) {
+                s += user_list.get(i)+",";
             }
-            s +="--------------------";
+            s += user_list.get(user_list.size()-1);
             return s;
         }
     }
 
-    public static void main(String[] args)throws IOException {
+    public static void main(String[] args) throws IOException, TimeoutException, JSONException {
         Config.setConfigName("./application.conf");                //读取当前目录下的application.conf文件
         String host = Config.getConfig().getString("SERVER_IP");        //获取host属性，这里会得到localhost
         int port = Config.getConfig().getInt("SERVER_PORT", 9001);        //获取port属性，由于没有设置，故这里会使用默认值9001

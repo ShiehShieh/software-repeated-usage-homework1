@@ -1,5 +1,7 @@
 package DataSource;
 
+import utils.Pair;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -7,6 +9,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 
 /**
  * Created by shieh on 3/24/16.
@@ -72,6 +75,29 @@ public class DataSource {
             System.out.println("User do not exist.");
         }
         return password;
+    }
+
+    public ArrayList<Pair<String,String>> getGroupUser() {
+        ArrayList<Pair<String,String>> res = new ArrayList<Pair<String,String>>();
+        Pair<String,String> tmp;
+        String sql = "select * from GroupUser";
+        ResultSet rs;
+        PreparedStatement ps;
+        try {
+            ps = conn.prepareStatement(sql);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                tmp = new Pair<String,String>();
+                tmp.setL(rs.getString(2));
+                tmp.setR(rs.getString(3));
+                res.add(tmp);
+            }
+            rs.close();
+            ps.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return res;
     }
 
     public String getPasswordResponse(String msg) throws IOException {
