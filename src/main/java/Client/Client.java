@@ -1,4 +1,4 @@
-﻿package src.main.java.Client;
+package src.main.java.Client;
 
 import org.json.JSONException;
 
@@ -41,6 +41,8 @@ public class Client  extends Socket {
     private BufferedReader strin;
     private final Object stdinLock = new Object();
     private boolean stdinFlag;
+    private Timer timer;
+    private Timer timer2;
 
     //用于存放登录的用户名和密码
     Map<String,String> map=new HashMap<String,String>();
@@ -49,7 +51,7 @@ public class Client  extends Socket {
     private RealtimeLogger pm_Msg;
     HashMap<String, String> mapLog = new HashMap<>();
 
-    private static List user_list = new ArrayList();	
+    private static List user_list = new ArrayList();
 
     public  Client(String SERVER_IP, int SERVER_PORT, String logDir)throws Exception{
         super(SERVER_IP, SERVER_PORT);
@@ -92,14 +94,14 @@ public class Client  extends Socket {
 
         PackPerDay packPerDay = new PackPerDay("./log/client/Msg","./archive/day/");
         PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
-        Timer timer;
+
         timer = new Timer();
         timer.schedule(packPerDay,86400000,86400000);
 
-        Timer timer2;
+
         timer2 = new Timer();
         timer2.schedule(packPerWeek,86400000*7,86400000*7);
-        
+
         readLineThread rt = new readLineThread();
 
         stdinFlag = false;
@@ -107,46 +109,45 @@ public class Client  extends Socket {
             Thread.sleep(100);
             if (stdinFlag) {
                 input = strin.readLine();
-                msg = new Message("{}", 0);
-                msg.setValue("msg", input);
-                msg.setValue("event", "message");
-                out.println(msg);
+                if(input.equals("quit") == false) {
+                    msg = new Message("{}", 0);
+                    msg.setValue("msg", input);
+                    msg.setValue("event", "message");
+                    msg.setValue("username", nameForFile);
+                    out.println(msg);
+                    System.out.println(msg);
 
-                mapLog.put("username", nameForFile);
-                mapLog.put("time", new Date().toString());
-                mapLog.put("message", input);
-                pm_Msg.log(mapLog);
+                    mapLog.put("username", nameForFile);
+                    mapLog.put("time", new Date().toString());
+                    mapLog.put("message", input);
+                    pm_Msg.log(mapLog);
 
-                pm.updateIndex(send_msg,1);
+                    pm.updateIndex(send_msg, 1);
+                }
+                else {
+                    msg = new Message("{}", 0);
+                    msg.setValue("msg", input);
+                    msg.setValue("event", "logout");
+                    msg.setValue("username", nameForFile);
+                    System.out.println(msg);
+                    out.println(msg);
+                    rt.readLinestop();
+                    break;
+                }
             }
         }
+        System.out.println("Bye");
     }
-    
+
     protected void finalized(){
-		if(pm != null){
-			pm.stop();
-		}
-	}
-
-    //创建文件
-    public String createFile(String lastname){
-        File f = new File(".");
-        // fileName表示你创建的文件名；为txt类型；
-        String fileName=lastname+".txt";
-        //String fileName="1234";
-        File file = new File(f,fileName);
-        if(!file.exists()){
-            try {
-                file.createNewFile();
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
+        if(pm != null){
+            pm.stop();
         }
-        return fileName;
+        timer.cancel();
+        timer2.cancel();
     }
 
-    //处理登录
+    //登录
     public void loginClient() throws IOException{
         String line;
         Message msgClient;
@@ -156,9 +157,9 @@ public class Client  extends Socket {
 
         while (true) {
             try {
-                System.out.print("please input the username：");
+                System.out.print("please input the username?");
                 username = strin.readLine();
-                System.out.println("please input the password：");
+                System.out.println("please input the password?");
                 password = strin.readLine();
                 msgClient = new Message("{}", 0);
                 msgClient.setValue("event", "login");
@@ -170,18 +171,15 @@ public class Client  extends Socket {
                 if (msgClient.getValue("event").equals("valid")) {
                     pm.updateIndex(login_success,1);
                     System.out.println("login successfully, please input the message:");
-                    //将成功登录的用户名和密码存入Map
                     map.put(msgClient.getValue("username"), msgClient.getValue("password"));
                     nameForFile = username;
                     break;
                 }
-                if (msgClient.getValue("event").equals("invalid")) {//登录失败
-                    //登录失败次数+1
+                if (msgClient.getValue("event").equals("invalid")) {                            //登录失败
                     pm.updateIndex(login_fail,1);
-                    //提示用户登录失败
                     System.out.println("invalid input, please login again");
                 }
-                else{//用户登录超时，登录失败
+                else{                                                                           //用户登录超时，登录失败
                     pm.updateIndex(login_fail,1);
                     System.out.println("login timeout, please login again:");
                 }
@@ -198,6 +196,7 @@ public class Client  extends Socket {
      */
     class readLineThread extends Thread{
 
+        private volatile boolean isStop = false;
         private BufferedReader buff;
         public readLineThread(){
             try {
@@ -207,52 +206,64 @@ public class Client  extends Socket {
             }
         }
 
+        public void readLinestop() {
+            isStop = true;
+            this.interrupt();
+        }
+
         @Override
         public void run() {
             Message msgClient;
             try {
-                while(true){
+                while(!isStop){
                     String result = buff.readLine();
-                    msgClient = new Message(result, this.getId());
-                    System.out.println(msgClient);
-                    //登录成功失败次数的计数器
-                    long id=this.getId();
+                    System.out.println(result);
+                    if(result != null){
 
+                        msgClient = new Message(result, this.getId());
+                        System.out.println(msgClient);
 
-                    //启动记录登录成功或失败的次数的计时器
-                    //  if(msgClient.toString()!=null){
-                    //  }
-		    if(msgClient.getValue("event").equals("list")){
-                    	String[] arr = msgClient.getValue("msg").split(",");
-                    	for(int i=0;i<arr.length;i++)
-                    		user_list.add(arr[i]);
-                    } else if(msgClient.getValue("event").equals("quit")){//客户端申请退出，服务端返回确认退出
-                        pm.stop();
-                        break;
-                    } else if (msgClient.getValue("event").equals("login")) {
-                        loginClient();
+                        long id=this.getId();
+                        if(msgClient.getValue("event").equals("list")){
+                            String[] arr = msgClient.getValue("msg").split(",");
+                            for(int i=0;i<arr.length;i++){
+                                user_list.add(arr[i]);
+                                System.out.println(arr[i]);
+                            }
+                        } else
+                        if(msgClient.getValue("event").equals("quit")){
+                            System.out.println("user: "+msgClient.getValue("username")+" quit.");
+                            for(int i=0;i<user_list.size();i++){
+                                if(user_list.get(i).equals(msgClient.getValue("username"))){
+                                    user_list.remove(i);
+                                    break;
+                                }
+                            }
+                        } else if (msgClient.getValue("event").equals("login")) {
+                            loginClient();
 
-                    } else if (msgClient.getValue("event").equals("relogin")) {
-                        loginClient();
-                    } else if (msgClient.getValue("event").equals("logedin")) {
-                        System.out.println("user: "+msgClient.getValue("username")+" loged in.");
-			if(user_list.size()!=0)
-                        	user_list.add(msgClient.getValue("username"));
-                        for(int i=0;i<user_list.size();i++)
-                        	System.out.print(user_list.get(i)+" ");
-                    } else if (msgClient.getValue("event").equals("message")) { //输出服务端发送消息
-                        System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
-                        //如果收到了消息
-                        mapLog.put("username", msgClient.getValue("username"));
-                        mapLog.put("time", new Date().toString());
-                        mapLog.put("message", msgClient.getValue("msg"));
-                        pm_Msg.log(mapLog);
-                        System.out.println(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
-                        pm_Msg.log(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
-                        pm.updateIndex(receive_msg,1);
-                    }
-                    synchronized (stdinLock) {
-                        stdinLock.notify();
+                        } else if (msgClient.getValue("event").equals("relogin")) {
+                            loginClient();
+                        } else if (msgClient.getValue("event").equals("logedin")) {
+                            System.out.println("user: "+msgClient.getValue("username")+" loged in.");
+                            if(user_list.size()!=0)
+                                user_list.add(msgClient.getValue("username"));
+                            for(int i=0;i<user_list.size();i++)
+                                System.out.print(user_list.get(i)+" ");
+                        } else if (msgClient.getValue("event").equals("message")) {
+                            System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
+                            //???????
+                            mapLog.put("username", msgClient.getValue("username"));
+                            mapLog.put("time", new Date().toString());
+                            mapLog.put("message", msgClient.getValue("msg"));
+                            pm_Msg.log(mapLog);
+                            System.out.println(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
+                            pm_Msg.log(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
+                            pm.updateIndex(receive_msg,1);
+                        }
+                        synchronized (stdinLock) {
+                            stdinLock.notify();
+                        }
                     }
                 }
                 in.close();
@@ -271,7 +282,8 @@ public class Client  extends Socket {
         String logDir = "./log/client";
 
         try {
-            new Client(host, port, logDir);//启动客户端
+            Client client = new Client(host, port, logDir);
+            client.finalized();
         }catch (Exception e) {
         }
     }
