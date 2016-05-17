@@ -17,6 +17,6 @@ public class PackerTest {
 
     @Test
     public void packupSuffix() throws Exception {
-        packer.packupSuffix("log");
+        packer.packupSuffix("log",false);
     }
 }

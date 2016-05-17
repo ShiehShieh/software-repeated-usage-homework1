@@ -1,4 +1,4 @@
-package PackerUtils;
+package src.main.java.PackerUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,12 +49,14 @@ public class PackPerWeek extends TimerTask{
         Packer packer = new Packer(iPath, oPath + strDate + "test.zip");
         files = new File(iPath).listFiles();
         try {
-            packer.packupSuffix(".log");
+            packer.packupSuffix(".log",true);
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        for(int i=0; i<files.length; i++){
+            for(int i=0; i<files.length; i++){
             Unpacker.unZip(iPath+files[i].getName(),iPath);
             files[i].delete();
         }

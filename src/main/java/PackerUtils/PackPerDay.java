@@ -1,5 +1,6 @@
-package PackerUtils;
+package src.main.java.PackerUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -50,9 +51,11 @@ public class PackPerDay extends TimerTask {
         System.out.println(strDate + "Packing......");
         Packer packer = new Packer(iPath, oPath + strDate + "test.zip");
         try {
-            packer.packupSuffix(".log");
+            packer.packupSuffix(".log",true);
         } catch (IOException e) {
             // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

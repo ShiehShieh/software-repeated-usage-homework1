@@ -1,4 +1,4 @@
-package src.main.java.Client;
+﻿package src.main.java.Client;
 
 import org.json.JSONException;
 
@@ -7,6 +7,7 @@ import src.main.java.PackerUtils.PackPerWeek;
 import wheellllll.config.Config;
 import wheellllll.performance.IntervalLogger;
 import MessageUtils.Message;
+import wheellllll.performance.Logger;
 import wheellllll.performance.RealtimeLogger;
 
 import java.io.BufferedReader;
@@ -48,6 +49,8 @@ public class Client  extends Socket {
     private RealtimeLogger pm_Msg;
     HashMap<String, String> mapLog = new HashMap<>();
 
+    private static List user_list = new ArrayList();	
+
     public  Client(String SERVER_IP, int SERVER_PORT, String logDir)throws Exception{
         super(SERVER_IP, SERVER_PORT);
         client =this;
@@ -63,8 +66,8 @@ public class Client  extends Socket {
         pm.setLogSuffix("log");
         pm.setDateFormat("yyyy-MM-dd HH_mm_ss");
 
-//        pm.setMaxFileSize(100, pm.SizeUnit.KB);
-//        pm.setMaxTotalSize(1, pm.SizeUnit.MB);
+        pm.setMaxFileSize(100, IntervalLogger.SizeUnit.KB);
+        pm.setMaxTotalSize(1, IntervalLogger.SizeUnit.MB);
 
         pm.setInterval(1,TimeUnit.MINUTES);
         pm.setInitialDelay(1);
@@ -82,6 +85,10 @@ public class Client  extends Socket {
         pm_Msg.setLogDir(logDir + "/Msg/");
         pm_Msg.setLogPrefix("Msg");
         pm_Msg.setFormatPattern("Username : ${username}\nTime : ${time}\nMessage : ${message}\n\n");
+
+        pm_Msg.setMaxFileSize(100,RealtimeLogger.SizeUnit.KB);
+        pm_Msg.setMaxFileSize(1,RealtimeLogger.SizeUnit.MB);
+
 
         PackPerDay packPerDay = new PackPerDay("./log/client/Msg","./archive/day/");
         PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
@@ -215,7 +222,11 @@ public class Client  extends Socket {
                     //启动记录登录成功或失败的次数的计时器
                     //  if(msgClient.toString()!=null){
                     //  }
-                    if(msgClient.getValue("event").equals("quit")){//客户端申请退出，服务端返回确认退出
+		    if(msgClient.getValue("event").equals("list")){
+                    	String[] arr = msgClient.getValue("msg").split(",");
+                    	for(int i=0;i<arr.length;i++)
+                    		user_list.add(arr[i]);
+                    } else if(msgClient.getValue("event").equals("quit")){//客户端申请退出，服务端返回确认退出
                         pm.stop();
                         break;
                     } else if (msgClient.getValue("event").equals("login")) {
@@ -225,6 +236,10 @@ public class Client  extends Socket {
                         loginClient();
                     } else if (msgClient.getValue("event").equals("logedin")) {
                         System.out.println("user: "+msgClient.getValue("username")+" loged in.");
+			if(user_list.size()!=0)
+                        	user_list.add(msgClient.getValue("username"));
+                        for(int i=0;i<user_list.size();i++)
+                        	System.out.print(user_list.get(i)+" ");
                     } else if (msgClient.getValue("event").equals("message")) { //输出服务端发送消息
                         System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
                         //如果收到了消息
