@@ -1,5 +1,7 @@
 package src.main.java.Client;
 
+import Interface.ChatInterface;
+import Interface.LoginInterface;
 import org.json.JSONException;
 
 import src.main.java.PackerUtils.PackPerDay;
@@ -53,6 +55,11 @@ public class Client  extends Socket {
 
     private static List user_list = new ArrayList();
 
+    LoginInterface loginInterface;
+    ChatInterface chatInterface;
+
+    boolean bFirst = true;
+
     public  Client(String SERVER_IP, int SERVER_PORT, String logDir)throws Exception{
         super(SERVER_IP, SERVER_PORT);
         client =this;
@@ -81,7 +88,7 @@ public class Client  extends Socket {
 
         pm.start();
 
-        String input;
+        String input = "";
 
         pm_Msg = new RealtimeLogger();
         pm_Msg.setLogDir(logDir + "/Msg/");
@@ -108,35 +115,56 @@ public class Client  extends Socket {
         while(true){
             Thread.sleep(100);
             if (stdinFlag) {
-                input = strin.readLine();
-                if(input.equals("quit") == false) {
-                    msg = new Message("{}", 0);
-                    msg.setValue("msg", input);
+                //input = strin.readLine();
+                //System.out.println(bFirst);
+
+                if(bFirst == true) {
+                    msg = new Message("{}", 0);     //初始查询在线用户
+                    msg.setValue("msg", "c:showuser");
                     msg.setValue("event", "message");
                     msg.setValue("username", nameForFile);
                     out.println(msg);
-                    System.out.println(msg);
-
-                    mapLog.put("username", nameForFile);
-                    mapLog.put("time", new Date().toString());
-                    mapLog.put("message", input);
-                    pm_Msg.log(mapLog);
-
-                    pm.updateIndex(send_msg, 1);
+                    bFirst = false;
                 }
                 else {
-                    msg = new Message("{}", 0);
-                    msg.setValue("msg", input);
-                    msg.setValue("event", "logout");
-                    msg.setValue("username", nameForFile);
-                    System.out.println(msg);
-                    out.println(msg);
-                    rt.readLinestop();
-                    break;
+                    while(input == "") {
+                        Thread.sleep(100);
+                        input = chatInterface.getSendMsg();
+                    }
+                    chatInterface.setPastMsg(nameForFile + ": " + input);
+
+                    if(input.equals("quit") == false) {
+                        msg = new Message("{}", 0);
+                        msg.setValue("msg", input);
+                        msg.setValue("event", "message");
+                        msg.setValue("username", nameForFile);
+                        out.println(msg);
+                        //System.out.println(msg);
+
+                        mapLog.put("username", nameForFile);
+                        mapLog.put("time", new Date().toString());
+                        mapLog.put("message", input);
+                        pm_Msg.log(mapLog);
+
+                        pm.updateIndex(send_msg, 1);
+                    }
+                    else {
+                        msg = new Message("{}", 0);
+                        msg.setValue("msg", input);
+                        msg.setValue("event", "logout");
+                        msg.setValue("username", nameForFile);
+                        System.out.println(msg);
+                        out.println(msg);
+                        rt.readLinestop();
+                        break;
+                    }
+                    chatInterface.setSendMsg("");
+                    input = "";
                 }
             }
         }
         System.out.println("Bye");
+        chatInterface.thisDepose();
     }
 
     protected void finalized(){
@@ -151,28 +179,44 @@ public class Client  extends Socket {
     public void loginClient() throws IOException{
         String line;
         Message msgClient;
-        String username;
-        String password;
+        String username = "";
+        String password = "";
         stdinFlag = false;
+        loginInterface = new LoginInterface();
+        bFirst = true;
 
         while (true) {
             try {
-                System.out.print("please input the username?");
-                username = strin.readLine();
-                System.out.println("please input the password?");
-                password = strin.readLine();
+                //System.out.print("please input the username?");
+                //username = strin.readLine();
+                while(username == "") {
+                    Thread.sleep(100);
+                    username = loginInterface.getUsername();
+                    password = loginInterface.getPassword();
+                }
+                System.out.println("username:");
+                System.out.println(username);
+                System.out.println("\npassword");
+                System.out.println(password);
+                //System.out.println("please input the password?");
+                //password = strin.readLine();
+
                 msgClient = new Message("{}", 0);
                 msgClient.setValue("event", "login");
                 msgClient.setValue("username", username);
                 msgClient.setValue("password", password);
+                loginInterface.setUsername("");
+                loginInterface.setPassword("");
                 out.println(msgClient);
                 line = in.readLine();
                 msgClient = new Message(line, 0);
-                if (msgClient.getValue("event").equals("valid")) {
+                if (msgClient.getValue("event").equals("valid")) {                              //登录成功
+                    loginInterface.thisDepose();
                     pm.updateIndex(login_success,1);
                     System.out.println("login successfully, please input the message:");
                     map.put(msgClient.getValue("username"), msgClient.getValue("password"));
                     nameForFile = username;
+                    chatInterface = new ChatInterface(username);
                     break;
                 }
                 if (msgClient.getValue("event").equals("invalid")) {                            //登录失败
@@ -183,9 +227,12 @@ public class Client  extends Socket {
                     pm.updateIndex(login_fail,1);
                     System.out.println("login timeout, please login again:");
                 }
-
+                username = "";
+                password = "";
             } catch (JSONException e) {
                 continue;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
         stdinFlag = true;
@@ -225,10 +272,14 @@ public class Client  extends Socket {
 
                         long id=this.getId();
                         if(msgClient.getValue("event").equals("list")){
+                            //System.out.println(msgClient.getValue("msg"));
                             String[] arr = msgClient.getValue("msg").split(",");
+                            String userLists = "";
                             for(int i=0;i<arr.length;i++){
                                 user_list.add(arr[i]);
-                                System.out.println(arr[i]);
+                                //System.out.println(arr[i]);
+                                userLists = userLists + arr[i] + "\n";
+                                chatInterface.setUserList(userLists);
                             }
                         } else
                         if(msgClient.getValue("event").equals("quit")){
@@ -239,6 +290,12 @@ public class Client  extends Socket {
                                     break;
                                 }
                             }
+                            String userLists = "";
+                            for(int i=0;i<user_list.size();i++){
+                                //System.out.print(user_list.get(i)+" ");
+                                userLists = userLists + user_list.get(i) + "\n";
+                                chatInterface.setUserList(userLists);
+                            }
                         } else if (msgClient.getValue("event").equals("login")) {
                             loginClient();
 
@@ -248,16 +305,20 @@ public class Client  extends Socket {
                             System.out.println("user: "+msgClient.getValue("username")+" loged in.");
                             if(user_list.size()!=0)
                                 user_list.add(msgClient.getValue("username"));
-                            for(int i=0;i<user_list.size();i++)
-                                System.out.print(user_list.get(i)+" ");
+                            String userLists = "";
+                            for(int i=0;i<user_list.size();i++){
+                                //System.out.print(user_list.get(i)+" ");
+                                userLists = userLists + user_list.get(i) + "\n";
+                                chatInterface.setUserList(userLists);
+                            }
                         } else if (msgClient.getValue("event").equals("message")) {
-                            System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
-                            //???????
+                            //System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
+                            chatInterface.setPastMsg(msgClient.getValue("username") + ": " + msgClient.getValue("msg"));
                             mapLog.put("username", msgClient.getValue("username"));
                             mapLog.put("time", new Date().toString());
                             mapLog.put("message", msgClient.getValue("msg"));
                             pm_Msg.log(mapLog);
-                            System.out.println(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
+                            //System.out.println(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
                             pm_Msg.log(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
                             pm.updateIndex(receive_msg,1);
                         }
