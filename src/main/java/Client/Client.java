@@ -3,9 +3,9 @@ package src.main.java.Client;
 import Interface.ChatInterface;
 import Interface.LoginInterface;
 import org.json.JSONException;
+import org.apache.log4j.Logger;
 
-import src.main.java.PackerUtils.PackPerDay;
-import src.main.java.PackerUtils.PackPerWeek;
+import PackerUtils.PackerTimer;
 import wheellllll.config.Config;
 import wheellllll.performance.IntervalLogger;
 import MessageUtils.Message;
@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+
 /**
  * Created by Xiemingyue & Jipengyue on 3/29/16.
  */
@@ -28,6 +29,7 @@ public class Client  extends Socket {
 
     private static String SERVER_IP;
     private static int SERVER_PORT;
+    private static String LEVEL;
 
     private IntervalLogger pm;
     public String login_success = "login successfully";
@@ -54,15 +56,26 @@ public class Client  extends Socket {
     HashMap<String, String> mapLog = new HashMap<>();
 
     private static List user_list = new ArrayList();
-
+    
+    private static Logger logger = Logger.getLogger(Client.class);
+    
     LoginInterface loginInterface;
     ChatInterface chatInterface;
 
     boolean bFirst = true;
 
-    public  Client(String SERVER_IP, int SERVER_PORT, String logDir)throws Exception{
+    public  Client(String SERVER_IP, int SERVER_PORT, String logDir, String level)throws Exception{
         super(SERVER_IP, SERVER_PORT);
         client =this;
+        
+        //日志归档部分
+        this.LEVEL = level;
+        PackerTimer packerTimer = new PackerTimer("./log/client/logs","./log/client/zips");
+        packerTimer.setInterval(1,TimeUnit.DAYS);
+        packerTimer.setPackDateFormat("yyyy-MM-dd mm");
+        packerTimer.setbEncryptIt(false);
+        packerTimer.start();
+        
         Message msg;
         out =new PrintWriter(this.getOutputStream(),true);
         in =new BufferedReader(new InputStreamReader(this.getInputStream()));
@@ -99,15 +112,29 @@ public class Client  extends Socket {
         pm_Msg.setMaxFileSize(1,RealtimeLogger.SizeUnit.MB);
 
 
-        PackPerDay packPerDay = new PackPerDay("./log/client/Msg","./archive/day/");
-        PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
-
-        timer = new Timer();
-        timer.schedule(packPerDay,86400000,86400000);
-
-
-        timer2 = new Timer();
-        timer2.schedule(packPerWeek,86400000*7,86400000*7);
+        //配置信息归档部分
+        PackerTimer packerTimerByDay = new PackerTimer("./log/client/pm","./archive/pm/");
+        packerTimer.setInterval(1,TimeUnit.DAYS);
+        packerTimer.setPackDateFormat("yyyy-MM-dd mm");
+        packerTimer.setbEncryptIt(false);
+        packerTimer.start();
+        
+       //配置信息归档部分
+        PackerTimer packerTimerByWeek = new PackerTimer("./log/client/Msg","./archive/day/");
+        packerTimer.setInterval(7,TimeUnit.DAYS);
+        packerTimer.setPackDateFormat("yyyy-MM-dd mm");
+        packerTimer.setbEncryptIt(false);
+        packerTimer.start();
+        
+//        PackPerDay packPerDay = new PackPerDay("./log/client/Msg","./archive/day/");
+//        PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
+//
+//        timer = new Timer();
+//        timer.schedule(packPerDay,86400000,86400000);
+//
+//
+//        timer2 = new Timer();
+//        timer2.schedule(packPerWeek,86400000*7,86400000*7);
 
         readLineThread rt = new readLineThread();
 
@@ -217,15 +244,36 @@ public class Client  extends Socket {
                     map.put(msgClient.getValue("username"), msgClient.getValue("password"));
                     nameForFile = username;
                     chatInterface = new ChatInterface(username);
+                    if(LEVEL=="DEBUG"){
+                    	logger.debug("SERVER_IP:"+SERVER_IP+";SERVER_PORT:"+SERVER_PORT+";");
+                    	logger.debug(msgClient.getValue("username")+" : log in.");  
+                    }
+                    else if(LEVEL=="ERROR"){
+                    	logger.error(msgClient.getValue("username")+" : log in.");
+                    }
                     break;
                 }
                 if (msgClient.getValue("event").equals("invalid")) {                            //登录失败
                     pm.updateIndex(login_fail,1);
                     System.out.println("invalid input, please login again");
+                    if(LEVEL=="DEBUG"){
+                    	logger.debug("SERVER_IP:"+SERVER_IP+";SERVER_PORT:"+SERVER_PORT+";");
+                    	logger.debug(msgClient.getValue("username")+" : invalid input.");  
+                    }
+                    else if(LEVEL=="ERROR"){
+                    	logger.error(msgClient.getValue("username")+" : invalid input.");
+                    }
                 }
                 else{                                                                           //用户登录超时，登录失败
                     pm.updateIndex(login_fail,1);
                     System.out.println("login timeout, please login again:");
+                    if(LEVEL=="DEBUG"){
+                    	logger.debug("SERVER_IP:"+SERVER_IP+";SERVER_PORT:"+SERVER_PORT+";");
+                    	logger.debug(msgClient.getValue("username")+" : login timeout.");  
+                    }
+                    else if(LEVEL=="ERROR"){
+                    	logger.error(msgClient.getValue("username")+" : login timeout.");
+                    }
                 }
                 username = "";
                 password = "";
@@ -281,6 +329,14 @@ public class Client  extends Socket {
                                 userLists = userLists + arr[i] + "\n";
                                 chatInterface.setUserList(userLists);
                             }
+                            if(LEVEL=="DEBUG"){
+                            	logger.debug(msgClient.getValue("username")+" : showuser.");
+                            	for(int i=0;i<arr.length;i++)
+                            		logger.debug(arr[i]);  
+                            }
+                            else if(LEVEL=="ERROR"){
+                            	logger.error(msgClient.getValue("username")+" : showuser.");
+                            }
                         } else
                         if(msgClient.getValue("event").equals("quit")){
                             System.out.println("user: "+msgClient.getValue("username")+" quit.");
@@ -295,6 +351,14 @@ public class Client  extends Socket {
                                 //System.out.print(user_list.get(i)+" ");
                                 userLists = userLists + user_list.get(i) + "\n";
                                 chatInterface.setUserList(userLists);
+                            }
+                            if(LEVEL=="DEBUG"){
+                            	logger.debug("SERVER_IP:"+SERVER_IP+";SERVER_PORT:"+SERVER_PORT+";");
+                            	logger.debug(msgClient.getValue("username")+" : quit.");
+                            	  
+                            }
+                            else if(LEVEL=="ERROR"){
+                            	logger.error(msgClient.getValue("username")+" : quit.");
                             }
                         } else if (msgClient.getValue("event").equals("login")) {
                             loginClient();
@@ -311,6 +375,15 @@ public class Client  extends Socket {
                                 userLists = userLists + user_list.get(i) + "\n";
                                 chatInterface.setUserList(userLists);
                             }
+                            
+                            if(LEVEL=="DEBUG"){
+                            	logger.debug("friend "+msgClient.getValue("username")+" : log in.");
+                            	  
+                            }
+                            else if(LEVEL=="ERROR"){
+                            	logger.error("friend : log in.");
+                            }
+                            
                         } else if (msgClient.getValue("event").equals("message")) {
                             //System.out.println(msgClient.getValue("username")+" said: "+msgClient.getValue("msg"));
                             chatInterface.setPastMsg(msgClient.getValue("username") + ": " + msgClient.getValue("msg"));
@@ -321,6 +394,15 @@ public class Client  extends Socket {
                             //System.out.println(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
                             pm_Msg.log(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
                             pm.updateIndex(receive_msg,1);
+                            
+                            if(LEVEL=="DEBUG"){
+                            	logger.debug("receive a message");
+                            	logger.debug(msgClient.getValue("username")+": "+msgClient.getValue("msg"));
+                            	  
+                            }
+                            else if(LEVEL=="ERROR"){
+                            	logger.error("receive a message from"+msgClient.getValue("username"));
+                            }
                         }
                         synchronized (stdinLock) {
                             stdinLock.notify();
@@ -340,10 +422,11 @@ public class Client  extends Socket {
         Config.setConfigName("./configuration/application.conf");
         String host = Config.getConfig().getString("SERVER_IP");
         int port = Config.getConfig().getInt("SERVER_PORT");
+        String level = Config.getConfig().getString("LEVEL");
         String logDir = "./log/client";
 
         try {
-            Client client = new Client(host, port, logDir);
+            Client client = new Client(host, port, logDir, level);
             client.finalized();
         }catch (Exception e) {
         }
