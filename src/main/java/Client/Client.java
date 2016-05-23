@@ -5,11 +5,10 @@ import Interface.LoginInterface;
 import org.json.JSONException;
 import org.apache.log4j.Logger;
 
-import PackerUtils.PackerTimer;
+import src.main.java.PackerUtils.PackerTimer;
 import wheellllll.config.Config;
 import wheellllll.performance.IntervalLogger;
 import MessageUtils.Message;
-import wheellllll.performance.Logger;
 import wheellllll.performance.RealtimeLogger;
 
 import java.io.BufferedReader;
@@ -18,6 +17,7 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -72,6 +72,7 @@ public class Client  extends Socket {
         this.LEVEL = level;
         PackerTimer packerTimer = new PackerTimer("./log/client/logs","./log/client/zips");
         packerTimer.setInterval(1,TimeUnit.DAYS);
+        packerTimer.setDelay(1,TimeUnit.DAYS);
         packerTimer.setPackDateFormat("yyyy-MM-dd mm");
         packerTimer.setbEncryptIt(false);
         packerTimer.start();
@@ -114,17 +115,28 @@ public class Client  extends Socket {
 
         //配置信息归档部分
         PackerTimer packerTimerByDay = new PackerTimer("./log/client/pm","./archive/pm/");
-        packerTimer.setInterval(1,TimeUnit.DAYS);
-        packerTimer.setPackDateFormat("yyyy-MM-dd mm");
-        packerTimer.setbEncryptIt(false);
-        packerTimer.start();
+        packerTimerByDay.setInterval(1,TimeUnit.DAYS);
+        packerTimerByDay.setDelay(1, TimeUnit.DAYS);
+        packerTimerByDay.setPackDateFormat("yyyy-MM-dd mm");
+        packerTimerByDay.setbEncryptIt(false);
+        packerTimerByDay.start();
         
        //配置信息归档部分
-        PackerTimer packerTimerByWeek = new PackerTimer("./log/client/Msg","./archive/day/");
-        packerTimer.setInterval(7,TimeUnit.DAYS);
-        packerTimer.setPackDateFormat("yyyy-MM-dd mm");
-        packerTimer.setbEncryptIt(false);
-        packerTimer.start();
+        PackerTimer packerTimerPerDay = new PackerTimer("./log/client/Msg","./archive/day/");
+        packerTimerPerDay.setInterval(1,TimeUnit.DAYS);
+        packerTimerPerDay.setDelay(1,TimeUnit.DAYS);
+        packerTimerPerDay.setPackDateFormat("yyyy-MM-dd");
+        packerTimerPerDay.setbEncryptIt(true);
+        packerTimerPerDay.start();
+
+        //周信息归档
+        PackerTimer packerTimerPerWeek = new PackerTimer("./log/client/Msg","./archive/day/");
+        packerTimerPerWeek.setInterval(7,TimeUnit.DAYS);
+        packerTimerPerWeek.setDelay(7,TimeUnit.DAYS);
+        packerTimerPerWeek.setPackDateFormat("yyyy-MM-dd");
+        packerTimerPerWeek.setbUnpack(true);
+        packerTimerPerWeek.setbEncryptIt(true);
+        packerTimerPerWeek.start();
         
 //        PackPerDay packPerDay = new PackPerDay("./log/client/Msg","./archive/day/");
 //        PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
