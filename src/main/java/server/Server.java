@@ -6,12 +6,13 @@ import File.SaveToFile;
 import MessageUtils.Message;
 import MessageUtils.MessageDeparturer;
 
-import PackerUtils.PackPerDay;
-import PackerUtils.PackPerWeek;
+import PackerUtils.PackerTimer;
+import org.apache.log4j.PropertyConfigurator;
 import org.json.JSONException;
 import utils.Pair;
 import utils.Room;
-import wheellllll.performance.*;
+import wheellllll.performance.IntervalLogger;
+import wheellllll.performance.RealtimeLogger;
 import wheellllll.license.*;
 import wheellllll.config.*;
 
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.log4j.Logger;
 
 /**
  * Created by shieh on 3/20/16.
@@ -54,12 +56,30 @@ public class Server extends ServerSocket {
     public String ignored_msg = "ignoredMessage";
     public String forwarded_msg = "forwardedMessage";
 
+    private static Logger logger = Logger.getLogger(Server.class);
+    private static String LEVEL;
+
     /**
      * 创建服务端Socket,创建向客户端发送消息线程,监听客户端请求并处理
      */
     public Server(int SERVER_PORT, String logDirname, String dbuser, String dbpw, boolean withLog,
-                  int numRoom, int roomSize) throws IOException, TimeoutException, JSONException {
+                  int numRoom, int roomSize, String level) throws IOException, TimeoutException, JSONException {
         super(SERVER_PORT);//创建ServerSocket
+
+        this.LEVEL = level;
+        PackerTimer packerTimer = new PackerTimer("./log/server/logs","./log/server/zips");
+        packerTimer.setInterval(1,TimeUnit.DAYS);
+        packerTimer.setPackDateFormat("yyyy-MM-dd mm");
+        packerTimer.setbEncryptIt(false);
+        packerTimer.start();
+
+        if(LEVEL=="DEBUG"){
+            logger.debug("SERVER_PORT:"+SERVER_PORT+";");
+        }
+        else if(LEVEL=="ERROR"){
+            logger.error("SERVER_PORT:"+SERVER_PORT+";");
+        }
+
         this.logDir = logDirname;
         this.withLog = withLog;
         this.roomList = new ArrayList<Room>();
@@ -92,8 +112,8 @@ public class Server extends ServerSocket {
     public void run() throws IOException {
         if (withLog) {
             pm = new IntervalLogger();
-            pm.setMaxFileSize(500, Logger.SizeUnit.KB); //第一个参数是数值，第二个参数是单位
-            pm.setMaxTotalSize(200, Logger.SizeUnit.MB); //第一个参数是数值，第二个参数是单位
+            pm.setMaxFileSize(500, wheellllll.performance.Logger.SizeUnit.KB); //第一个参数是数值，第二个参数是单位
+            pm.setMaxTotalSize(200, wheellllll.performance.Logger.SizeUnit.MB); //第一个参数是数值，第二个参数是单位
             pm.setLogDir(this.logDir);   //设置输出文件的路径
             pm.setLogPrefix("Server");  //设置输出的文件名
             pm.setInterval(1, TimeUnit.SECONDS);   //时间单位为秒
@@ -112,26 +132,32 @@ public class Server extends ServerSocket {
             // am.addLogger(pm);
             // am.addLogger(messageLogger);
             // am.setInterval(1, TimeUnit.SECONDS);
+            /*
             PackPerWeek msgArchive = new PackPerWeek("./llog","./archive/");
             Timer msgArchiveTimer = new Timer();
             msgArchiveTimer.schedule(msgArchive,secondsOfDay*7,secondsOfDay*7);
             PackPerWeek pmArchive = new PackPerWeek(this.logDir,"./archive/");
             Timer pmArchiveTimer = new Timer();
             pmArchiveTimer.schedule(pmArchive,secondsOfDay*7,secondsOfDay*7);
+            */
+
+            PackerTimer packerTimerByDay = new PackerTimer("./log/server/pm","./archive/pm/");
+            packerTimerByDay.setInterval(1,TimeUnit.DAYS);
+            packerTimerByDay.setPackDateFormat("yyyy-MM-dd mm");
+            packerTimerByDay.setbEncryptIt(false);
+            packerTimerByDay.start();
+
+            //配置信息归档部分
+            PackerTimer packerTimerByWeek = new PackerTimer("./log/server/Msg","./archive/day/");
+            packerTimerByWeek.setInterval(7,TimeUnit.DAYS);
+            packerTimerByWeek.setPackDateFormat("yyyy-MM-dd mm");
+            packerTimerByWeek.setbEncryptIt(false);
+            packerTimerByWeek.start();
 
             pm.start();
             // am.start();
 
-            saveToFile = new SaveToFile("./log/server/");
-            PackPerDay packPerDay = new PackPerDay("./log/server","./archive/day/");
-            PackPerWeek packPerWeek = new PackPerWeek("./archive/day/","./archive/week/");
-            Timer timer;
-            timer = new Timer();
-            timer.schedule(packPerDay,secondsOfDay,secondsOfDay);
-
-            Timer timer2;
-            timer2 = new Timer();
-            timer2.schedule(packPerWeek,secondsOfDay*7,secondsOfDay*7);
+            // saveToFile = new SaveToFile("./log/server/");
         }
 
         try {
@@ -287,15 +313,17 @@ public class Server extends ServerSocket {
     }
 
     public static void main(String[] args) throws IOException, TimeoutException, JSONException {
-        Config.setConfigName("./application.conf");                //读取当前目录下的application.conf文件
+        Config.setConfigName("configuration/application.conf");                //读取当前目录下的application.conf文件
+        PropertyConfigurator.configure("configuration/log4jserver.properties");
         String host = Config.getConfig().getString("SERVER_IP");        //获取host属性，这里会得到localhost
         int port = Config.getConfig().getInt("SERVER_PORT", 9001);        //获取port属性，由于没有设置，故这里会使用默认值9001
+        String level = Config.getConfig().getString("LEVEL");
         System.out.println(host);
         System.out.println(port);
         String logDirname = "./log";
         String dbuser = "root";
         String dbpw = "root";
-        Server server = new Server(port, logDirname, dbuser, dbpw, true, 10, 10);//启动服务端
+        Server server = new Server(port, logDirname, dbuser, dbpw, true, 10, 10, level);//启动服务端
         server.run();
     }
 }
