@@ -5,19 +5,18 @@ import Interface.LoginInterface;
 import org.json.JSONException;
 import org.apache.log4j.Logger;
 
+import src.main.java.MessageUtils.Message;
 import src.main.java.PackerUtils.PackerTimer;
 import wheellllll.config.Config;
 import wheellllll.performance.IntervalLogger;
-import MessageUtils.Message;
 import wheellllll.performance.RealtimeLogger;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.net.Socket;
-import java.io.File;
 import java.io.IOException;
-import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +28,8 @@ public class Client  extends Socket {
 
     private static String SERVER_IP;
     private static int SERVER_PORT;
+    private static String recSERVER_IP;
+    private static int recSERVER_PORT;
     private static String LEVEL;
 
     private IntervalLogger pm;
@@ -39,9 +40,10 @@ public class Client  extends Socket {
 
     private static Object loginLock = new Object();
 
-    private Socket client;
+    private Socket server;
     private PrintWriter out;
     private BufferedReader in;
+    private PrintWriter rOut;
     private BufferedReader strin;
     private final Object stdinLock = new Object();
     private boolean stdinFlag;
@@ -49,7 +51,7 @@ public class Client  extends Socket {
     private Timer timer2;
 
     //用于存放登录的用户名和密码
-    Map<String,String> map=new HashMap<String,String>();
+    //Map<String,String> map=new HashMap<String,String>();
     private String nameForFile="";
 
     private RealtimeLogger pm_Msg;
@@ -62,11 +64,16 @@ public class Client  extends Socket {
     LoginInterface loginInterface;
     ChatInterface chatInterface;
 
+    private Socket recServer;
+
     boolean bFirst = true;
 
-    public  Client(String SERVER_IP, int SERVER_PORT, String logDir, String level)throws Exception{
+    public  Client(String SERVER_IP, int SERVER_PORT, String recSERVER_IP, int recSERVER_PORT, String logDir, String level)throws Exception{
         super(SERVER_IP, SERVER_PORT);
-        client =this;
+
+        recServer = new Socket(InetAddress.getByName(recSERVER_IP), recSERVER_PORT);
+
+        server =this;
         
         //日志归档部分
         this.LEVEL = level;
@@ -79,7 +86,8 @@ public class Client  extends Socket {
         
         Message msg;
         out =new PrintWriter(this.getOutputStream(),true);
-        in =new BufferedReader(new InputStreamReader(this.getInputStream()));
+        rOut = new PrintWriter(recServer.getOutputStream(),true);
+        in =new BufferedReader(new InputStreamReader(recServer.getInputStream()));
         strin = new BufferedReader(new InputStreamReader(System.in));
 
         pm = new IntervalLogger();
@@ -158,7 +166,7 @@ public class Client  extends Socket {
                 //System.out.println(bFirst);
 
                 if(bFirst == true) {
-                    msg = new Message("{}", 0);     //初始查询在线用户
+                    msg = new Message("{}", "");     //初始查询在线用户
                     msg.setValue("msg", "c:showuser");
                     msg.setValue("event", "message");
                     msg.setValue("username", nameForFile);
@@ -173,7 +181,7 @@ public class Client  extends Socket {
                     chatInterface.setPastMsg(nameForFile + ": " + input);
 
                     if(input.equals("quit") == false) {
-                        msg = new Message("{}", 0);
+                        msg = new Message("{}", "");
                         msg.setValue("msg", input);
                         msg.setValue("event", "message");
                         msg.setValue("username", nameForFile);
@@ -188,7 +196,7 @@ public class Client  extends Socket {
                         pm.updateIndex(send_msg, 1);
                     }
                     else {
-                        msg = new Message("{}", 0);
+                        msg = new Message("{}", "");
                         msg.setValue("msg", input);
                         msg.setValue("event", "logout");
                         msg.setValue("username", nameForFile);
@@ -240,7 +248,7 @@ public class Client  extends Socket {
                 //System.out.println("please input the password?");
                 //password = strin.readLine();
 
-                msgClient = new Message("{}", 0);
+                msgClient = new Message("{}", "");
                 msgClient.setValue("event", "login");
                 msgClient.setValue("username", username);
                 msgClient.setValue("password", password);
@@ -248,12 +256,16 @@ public class Client  extends Socket {
                 loginInterface.setPassword("");
                 out.println(msgClient);
                 line = in.readLine();
-                msgClient = new Message(line, 0);
+                System.out.println(line);
+                msgClient = new Message(line, "");
                 if (msgClient.getValue("event").equals("valid")) {                              //登录成功
                     loginInterface.thisDepose();
                     pm.updateIndex(login_success,1);
+                    Message rMsg = new Message("{}", "");
+                    rMsg.setValue("username", username);
+                    rOut.println(rMsg);
                     System.out.println("login successfully, please input the message:");
-                    map.put(msgClient.getValue("username"), msgClient.getValue("password"));
+                    //map.put(msgClient.getValue("username"), msgClient.getValue("password"));
                     nameForFile = username;
                     chatInterface = new ChatInterface(username);
                     if(LEVEL=="DEBUG"){
@@ -307,7 +319,7 @@ public class Client  extends Socket {
         private BufferedReader buff;
         public readLineThread(){
             try {
-                buff =new BufferedReader(new InputStreamReader(client.getInputStream()));
+                buff =new BufferedReader(new InputStreamReader(recServer.getInputStream()));
                 start();
             }catch (Exception e) {
             }
@@ -327,7 +339,7 @@ public class Client  extends Socket {
                     System.out.println(result);
                     if(result != null){
 
-                        msgClient = new Message(result, this.getId());
+                        msgClient = new Message(result, "");
                         System.out.println(msgClient);
 
                         long id=this.getId();
@@ -423,7 +435,7 @@ public class Client  extends Socket {
                 }
                 in.close();
                 out.close();
-                client.close();
+                server.close();
             }catch (Exception e) {
                 e.printStackTrace();
             }
@@ -434,11 +446,13 @@ public class Client  extends Socket {
         Config.setConfigName("./configuration/application.conf");
         String host = Config.getConfig().getString("SERVER_IP");
         int port = Config.getConfig().getInt("SERVER_PORT");
+        String recHost = "127.0.0.1";
+        int recPort = 9002;
         String level = Config.getConfig().getString("LEVEL");
         String logDir = "./log/client";
 
         try {
-            Client client = new Client(host, port, logDir, level);
+            Client client = new Client(host, port, recHost, recPort, logDir, level);
             client.finalized();
         }catch (Exception e) {
         }
