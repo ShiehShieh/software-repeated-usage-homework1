@@ -120,7 +120,9 @@ public class MsgReceiveServer extends ServerSocket{
                     Message loginSuccessMsg = new Message("{}", "");
                     loginSuccessMsg.reset(sLoginSuccessMsg);
                     String loginSuccessUsername = loginSuccessMsg.getValue("username");
-                    user_list.add(loginSuccessUsername);
+                    if(user_list.contains(loginSuccessUsername) == false){
+                        user_list.add(loginSuccessUsername);
+                    }
                     System.out.println(user_list.size());
                 } catch (JSONException e) {
                     e.printStackTrace();
@@ -137,7 +139,7 @@ public class MsgReceiveServer extends ServerSocket{
             pm = new IntervalLogger();
             pm.setMaxFileSize(500, Logger.SizeUnit.KB);
             pm.setMaxTotalSize(200, Logger.SizeUnit.MB);
-            pm.setLogDir(this.logDir + "/pm");
+            pm.setLogDir(this.logDir + "/pm/msgRec");
             pm.setLogPrefix("Server");
             pm.setInterval(1, TimeUnit.MINUTES);
             pm.addIndex(received_msg);
@@ -150,7 +152,7 @@ public class MsgReceiveServer extends ServerSocket{
             messageLogger.setFormatPattern("Username : ${username}\nTime : ${time}\nMessage : ${message}\n\n");
 
             //接收消息计数打包
-            pmPacker = new PackerTimer(this.logDir + "/pm", this.zipDir + "/pm/day");
+            pmPacker = new PackerTimer(this.logDir + "/pm/msgRec", this.zipDir + "/pm/day/msgRec");
             pmPacker.setInterval(1,TimeUnit.DAYS);
             pmPacker.setDelay(1,TimeUnit.DAYS);
             pmPacker.setPackDateFormat("yyyy-MM-dd");
@@ -158,7 +160,7 @@ public class MsgReceiveServer extends ServerSocket{
             pmPacker.start();
 
             //接收消息计数周信息归档
-            pmPackerWeek = new PackerTimer(this.zipDir + "/pm/day", this.zipDir + "/pm/week");
+            pmPackerWeek = new PackerTimer(this.zipDir + "/pm/day/msgRec", this.zipDir + "/pm/week/msgRec");
             pmPackerWeek.setInterval(7,TimeUnit.DAYS);
             pmPackerWeek.setDelay(7,TimeUnit.DAYS);
             pmPackerWeek.setPackDateFormat("yyyy-MM-dd");

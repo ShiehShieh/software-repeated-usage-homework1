@@ -212,6 +212,9 @@ public class Client  extends Socket {
         }
         System.out.println("Bye");
         chatInterface.thisDepose();
+
+        rt.readLinestop();
+        finalized();
     }
 
     protected void finalized(){
@@ -241,6 +244,14 @@ public class Client  extends Socket {
                     username = loginInterface.getUsername();
                     password = loginInterface.getPassword();
                 }
+                Message rMsg = null;
+                try {
+                    rMsg = new Message("{}", "");
+                    rMsg.setValue("username", username);
+                    rOut.println(rMsg);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
                 System.out.println("username:");
                 System.out.println(username);
                 System.out.println("\npassword");
@@ -261,9 +272,6 @@ public class Client  extends Socket {
                 if (msgClient.getValue("event").equals("valid")) {                              //登录成功
                     loginInterface.thisDepose();
                     pm.updateIndex(login_success,1);
-                    Message rMsg = new Message("{}", "");
-                    rMsg.setValue("username", username);
-                    rOut.println(rMsg);
                     System.out.println("login successfully, please input the message:");
                     //map.put(msgClient.getValue("username"), msgClient.getValue("password"));
                     nameForFile = username;
@@ -288,7 +296,8 @@ public class Client  extends Socket {
                     	logger.error(msgClient.getValue("username")+" : invalid input.");
                     }
                 }
-                else{                                                                           //用户登录超时，登录失败
+                else if(msgClient.getValue("event").equals("timeout")){                                                                           //用户登录超时，登录失败
+                    System.out.println(msgClient.toString());
                     pm.updateIndex(login_fail,1);
                     System.out.println("login timeout, please login again:");
                     if(LEVEL=="DEBUG"){
@@ -391,7 +400,7 @@ public class Client  extends Socket {
                             loginClient();
                         } else if (msgClient.getValue("event").equals("logedin")) {
                             System.out.println("user: "+msgClient.getValue("username")+" loged in.");
-                            if(user_list.size()!=0)
+                            if(user_list.size()!=0 && !user_list.contains(msgClient.getValue("username")))
                                 user_list.add(msgClient.getValue("username"));
                             String userLists = "";
                             for(int i=0;i<user_list.size();i++){

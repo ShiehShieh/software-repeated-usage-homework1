@@ -8,6 +8,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -17,6 +19,8 @@ import org.json.JSONException;
 import src.main.java.DataSource.DataSource;
 import src.main.java.MessageUtils.Message;
 import src.main.java.MessageUtils.MessageDeparturer;
+import src.main.java.PackerUtils.PackerTimer;
+import utils.Pair;
 import wheellllll.config.Config;
 import wheellllll.performance.IntervalLogger;
 import wheellllll.performance.Logger;
@@ -34,6 +38,11 @@ public class UserVerificationServer extends ServerSocket{
 	private IntervalLogger invalid_pm;
     private String valid_login = "validLogin";
 	private String invalid_login = "invalidLogin";
+
+	private PackerTimer validPacker;
+	private PackerTimer validPackerWeek;
+	private PackerTimer invalidPacker;
+	private PackerTimer invalidPackerWeek;
     
     Consumer loginConsumer;
     
@@ -41,9 +50,16 @@ public class UserVerificationServer extends ServerSocket{
     private String password;
     
     public Message loginSuccess;
-    public Message loginFail;
+
+    public Message loginFailMsg;
+	public Message loginSucessMsg;
+
+	public Message loginSuccessSend;
 
 	private Channel loginChannel;
+
+	//用户群租分发
+	private HashMap<String,HashMap<String,Message>> allMsg;
     
 	 public UserVerificationServer(int SERVER_PORT, String logDirname, String zipDirname, String dbUser, String dbPwd, boolean withLog)
 	            throws IOException, TimeoutException, JSONException {
@@ -56,13 +72,34 @@ public class UserVerificationServer extends ServerSocket{
 
 	        dataSource = new DataSource(dbUser, dbPwd);
 
+			 HashMap<String,Message> user2msg;
+			 allMsg = new HashMap<String,HashMap<String,Message>>();
+			 ArrayList<Pair<String,String>> res = dataSource.getGroupUser();
+			 for (Pair<String,String> p : res) {
+				 loginSuccessSend = new Message("{}", p.getR());
+				 loginSuccessSend.init(p.getR(), "localhost");
+				 loginSuccessSend.bindTo(p.getL(), p.getR());
+				 if (allMsg.containsKey(p.getL())) {
+					 allMsg.get(p.getL()).put(p.getR(), loginSuccessSend);
+				 }
+				 else {
+					 user2msg = new HashMap<String, Message>();
+					 user2msg.put(p.getR(), loginSuccessSend);
+					 allMsg.put(p.getL(), user2msg);
+				 }
+			 }
+
 			loginSuccess = new Message("{}", "");
 			loginSuccess.init("login_success","localhost");
 			loginSuccess.bindTo("login_auth","login_success");
 
-			loginFail = new Message("{}", "");
-			loginFail.init("login_fail","localhost");
-			loginFail.bindTo("login_auth","login_fail");
+		 	loginFailMsg = new Message("{}", "");
+		 	loginFailMsg.init("login_fail_msg","localhost");
+		 	loginFailMsg.bindTo("login_auth","login_fail_msg");
+
+		 	loginSucessMsg = new Message("{}", "");
+		 	loginSucessMsg.init("login_success_msg","localhost");
+		 	loginSucessMsg.bindTo("login_auth","login_success_msg");
 	        
 	        ConnectionFactory factory = new ConnectionFactory();
 	        factory.setHost("localhost");
@@ -76,7 +113,7 @@ public class UserVerificationServer extends ServerSocket{
 	
 	 public void run() throws IOException {
 			if (withLog) {
-				//登录计数
+				//合法登录计数
 				valid_pm = new IntervalLogger();
 				valid_pm.setMaxFileSize(500, Logger.SizeUnit.KB);
 				valid_pm.setMaxTotalSize(200, Logger.SizeUnit.MB);
@@ -86,6 +123,7 @@ public class UserVerificationServer extends ServerSocket{
 				valid_pm.addIndex(valid_login);
 				valid_pm.start();
 
+				//不合法登录计数
 				invalid_pm = new IntervalLogger();
 				invalid_pm.setMaxFileSize(500, Logger.SizeUnit.KB);
 				invalid_pm.setMaxTotalSize(200, Logger.SizeUnit.MB);
@@ -94,6 +132,40 @@ public class UserVerificationServer extends ServerSocket{
 				invalid_pm.setInterval(1, TimeUnit.MINUTES);
 				invalid_pm.addIndex(invalid_login);
 				invalid_pm.start();
+
+				//合法消息计数打包
+				validPacker = new PackerTimer(this.logDir + "/pm/validLogin", this.zipDir + "/pm/day/validLogin");
+				validPacker.setInterval(1,TimeUnit.DAYS);
+				validPacker.setDelay(1,TimeUnit.DAYS);
+				validPacker.setPackDateFormat("yyyy-MM-dd");
+				validPacker.setbEncryptIt(true);
+				validPacker.start();
+
+				//合法接收消息计数周信息归档
+				validPackerWeek = new PackerTimer(this.zipDir + "/pm/day/validLogin", this.zipDir + "/pm/week/validLogin");
+				validPackerWeek.setInterval(7,TimeUnit.DAYS);
+				validPackerWeek.setDelay(7,TimeUnit.DAYS);
+				validPackerWeek.setPackDateFormat("yyyy-MM-dd");
+				validPackerWeek.setbUnpack(true);
+				validPackerWeek.setbEncryptIt(true);
+				validPackerWeek.start();
+
+				//不合法接收消息打包
+				invalidPacker = new PackerTimer(this.logDir + "/pm/invalidLogin", this.zipDir + "/pm/day/invalidLogin");
+				invalidPacker.setInterval(1,TimeUnit.DAYS);
+				invalidPacker.setDelay(1,TimeUnit.DAYS);
+				invalidPacker.setPackDateFormat("yyyy-MM-dd");
+				invalidPacker.setbEncryptIt(true);
+				invalidPacker.start();
+
+				//不合法接收消息周信息归档
+				invalidPackerWeek = new PackerTimer(this.zipDir + "/pm/day/invalidLogin", this.zipDir + "/pm/week/invalidLogin");
+				invalidPackerWeek.setInterval(7,TimeUnit.DAYS);
+				invalidPackerWeek.setDelay(7,TimeUnit.DAYS);
+				invalidPackerWeek.setPackDateFormat("yyyy-MM-dd");
+				invalidPackerWeek.setbUnpack(true);
+				invalidPackerWeek.setbEncryptIt(true);
+				invalidPackerWeek.start();
 			}
 
 
@@ -115,17 +187,35 @@ public class UserVerificationServer extends ServerSocket{
 					 if (password.equals(dataSource.getPasswordDB(username))) {
 						 msg.setValue("event", "valid");
 						 loginSuccess.reset(msg.toString());
+						 loginSucessMsg.reset(msg.toString());
 						 synchronized (loginThreadLock) {
 							 loginSuccess.publishToOne("login_auth","login_success");
+							 loginSucessMsg.publishToOne("login_auth","login_success_msg");
 						 }
+
+						 String exchangeName = "";
+						 for (String key : allMsg.keySet()) {
+							 if (allMsg.get(key).containsKey(username)) {
+								 exchangeName = key;
+								 loginSuccessSend = allMsg.get(key).get(username);
+							 }
+						 }
+						 loginSuccessSend.setValue("target", "others");
+						 loginSuccessSend.setValue("event", "logedin");
+						 loginSuccessSend.setValue("username", username);
+						 loginSuccessSend.publishToAll(exchangeName);
+
+						 valid_pm.setIndex(valid_login, 1);
 					 }
 					 //登录失败
 					 else {
 						 msg.setValue("event", "invalid");
-						 loginFail.reset(msg.toString());
+						 loginFailMsg.reset(msg.toString());
 						 synchronized (loginThreadLock) {
-							 loginFail.publishToOne("login_auth","login_fail");
+							 loginFailMsg.publishToOne("login_auth","login_fail");
 						 }
+
+						 invalid_pm.setIndex(invalid_login, 1);
 					 }
 
 				 } catch (JSONException e) {

@@ -5,6 +5,7 @@ import org.json.JSONException;
 import src.main.java.DataSource.DataSource;
 import src.main.java.MessageUtils.Message;
 import src.main.java.MessageUtils.MessageDeparturer;
+import src.main.java.PackerUtils.PackerTimer;
 import utils.Pair;
 import wheellllll.config.Config;
 import wheellllll.performance.IntervalLogger;
@@ -37,6 +38,9 @@ public class MsgSendServer extends ServerSocket {
     private IntervalLogger pm;
     private String forwarded_msg = "forwardedMessage";
 
+    private PackerTimer pmPacker;
+    private PackerTimer pmPackerWeek;
+
     private HashMap<String, Socket> user2socket = new HashMap<>();
     private HashMap<String, MessageDeparturer> user2depart = new HashMap<>();
 
@@ -46,6 +50,7 @@ public class MsgSendServer extends ServerSocket {
     Consumer logoutConsumer;
     Consumer reloginConsumer;
     Consumer loginFailConsumer;
+    Consumer loginSuccessConsumer;
 
     public MsgSendServer(int SERVER_PORT, String logDirname, String zipDirname, String dbUser, String dbPwd, boolean withLog)
             throws IOException, TimeoutException, JSONException {
@@ -72,6 +77,10 @@ public class MsgSendServer extends ServerSocket {
                     Message logoutMsg = new Message("{}", "");
                     logoutMsg.reset(getMsg);
                     String getUsername = logoutMsg.getValue("username");
+
+                    MessageDeparturer messageLoginDeparturer = user2depart.get(getUsername);
+                    messageLoginDeparturer.cancelConsumer();
+
                     user2socket.remove(getUsername);
                     user2depart.remove(getUsername);
                 } catch (JSONException e) {
@@ -104,7 +113,7 @@ public class MsgSendServer extends ServerSocket {
         reloginChannel.basicConsume("relogin_msg", true, reloginConsumer);
 
         Channel loginFailChannel = connection.createChannel();
-        loginFailChannel.queueDeclare("login_fail", true, false, false, null);
+        loginFailChannel.queueDeclare("login_fail_msg", true, false, false, null);
         loginFailConsumer = new DefaultConsumer(loginFailChannel) {
             @Override
             public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
@@ -116,14 +125,40 @@ public class MsgSendServer extends ServerSocket {
                     String loginFailUsername = loginFailMsg.getValue("username");
                     Socket loginFailClient = user2socket.get(loginFailUsername);
                     PrintWriter loginFailOut = new PrintWriter(loginFailClient.getOutputStream(),true);
-                    loginFailMsg.setValue("event","relogin");
+                    loginFailMsg.setValue("event","invalid");
                     loginFailOut.println(loginFailMsg);
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
             }
         };
-        loginFailChannel.basicConsume("login_fail", true, loginFailConsumer);
+        loginFailChannel.basicConsume("login_fail_msg", true, loginFailConsumer);
+
+        Channel loginSuccessChannel = connection.createChannel();
+        loginSuccessChannel.queueDeclare("login_success_msg", true, false, false, null);
+        loginSuccessConsumer = new DefaultConsumer(loginSuccessChannel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                    throws IOException {
+                String sLoginSuccessMsg = new String(body, "UTF-8");
+                try {
+                    Message loginSuccessMsg = new Message("{}", "");
+                    loginSuccessMsg.reset(sLoginSuccessMsg);
+                    String loginSuccessUsername = loginSuccessMsg.getValue("username");
+                    Socket loginSuccessClient = user2socket.get(loginSuccessUsername);
+                    PrintWriter loginSuccessOut = new PrintWriter(loginSuccessClient.getOutputStream(),true);
+                    loginSuccessMsg.setValue("event","valid");
+                    System.out.println(loginSuccessMsg.toString());
+                    loginSuccessOut.println(loginSuccessMsg);
+
+                    MessageDeparturer messageLoginDeparturer = user2depart.get(loginSuccessUsername);
+                    messageLoginDeparturer.beginConsumer();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        loginSuccessChannel.basicConsume("login_success_msg", true, loginSuccessConsumer);
 
         Message msg;
         HashMap<String,Message> user2msg;
@@ -151,13 +186,28 @@ public class MsgSendServer extends ServerSocket {
             pm = new IntervalLogger();
             pm.setMaxFileSize(500, Logger.SizeUnit.KB);
             pm.setMaxTotalSize(200, Logger.SizeUnit.MB);
-            pm.setLogDir(this.logDir + "/pm");
+            pm.setLogDir(this.logDir + "/pm/msgSend");
             pm.setLogPrefix("Server");
             pm.setInterval(1, TimeUnit.MINUTES);
             pm.addIndex(forwarded_msg);
             pm.start();
 
+            //转发消息计数打包
+            pmPacker = new PackerTimer(this.logDir + "/pm/msgSend", this.zipDir + "/pm/day/msgSend");
+            pmPacker.setInterval(1,TimeUnit.DAYS);
+            pmPacker.setDelay(1,TimeUnit.DAYS);
+            pmPacker.setPackDateFormat("yyyy-MM-dd");
+            pmPacker.setbEncryptIt(true);
+            pmPacker.start();
 
+            //转发消息计数周信息归档
+            pmPackerWeek = new PackerTimer(this.zipDir + "/pm/day/msgSend", this.zipDir + "/pm/week/msgSend");
+            pmPackerWeek.setInterval(7,TimeUnit.DAYS);
+            pmPackerWeek.setDelay(7,TimeUnit.DAYS);
+            pmPackerWeek.setPackDateFormat("yyyy-MM-dd");
+            pmPackerWeek.setbUnpack(true);
+            pmPackerWeek.setbEncryptIt(true);
+            pmPackerWeek.start();
 
         }
         try {
@@ -170,19 +220,12 @@ public class MsgSendServer extends ServerSocket {
                 msg.setValue("event", "login");
                 out.println(msg);
 
-                //测试用
-                sleep(3000);
-                Message mmsg = new Message("{}", "");
-                mmsg.setValue("event", "valid");
-                out.println(mmsg);
-
                 //获取用户名
                 BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
 
                 String inLine = null;
                 while(inLine == null){
                     inLine = in.readLine();
-                    sleep(300);
                 }
                 Message recMsg = new Message("{}", "");
                 recMsg.reset(inLine);
@@ -205,7 +248,6 @@ public class MsgSendServer extends ServerSocket {
 
                 messageDeparturer = new MessageDeparturer(sendMsg, out, pm, forwarded_msg);
                 user2depart.put(username, messageDeparturer);
-                messageDeparturer.beginConsumer();
             }
         }catch (Exception e) {
         }finally{
