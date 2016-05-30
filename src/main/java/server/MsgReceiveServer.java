@@ -51,6 +51,7 @@ public class MsgReceiveServer extends ServerSocket{
     public Message loginMsg;
     public Message normalMsg;
     public Message logoutMsg;
+    public Message reloginMsg;
 
     //在线用户集合 即登录成功用户集合
     private static List<String> user_list = new ArrayList<String>();
@@ -97,6 +98,10 @@ public class MsgReceiveServer extends ServerSocket{
         logoutMsg = new Message("{}", "");
         logoutMsg.init("logout_msg","localhost");
         logoutMsg.bindTo("msg_send","logout_msg");
+
+        reloginMsg = new Message("{}", "");
+        reloginMsg.init("relogin_msg","localhost");
+        reloginMsg.bindTo("msg_send","relogin_msg");
     }
 
     public void run() throws IOException {
@@ -179,6 +184,7 @@ public class MsgReceiveServer extends ServerSocket{
         private int MAX_MESSAGE_PER_SECOND = 5;
         private int MAX_MESSAGE_FOR_TOTAL = 10;
 
+        String username = null;
         String queueName = null;
         String exchangeName = null;
 
@@ -206,19 +212,18 @@ public class MsgReceiveServer extends ServerSocket{
         public void run() {
 
             try {
-                //许可验证
-                License.Availability availability = license.use();
+                msg = new Message("{}", "");
+                String sMsg = in.readLine();
+                System.out.println(sMsg);
+                if(sMsg != null){
+                    msg.reset(sMsg);
 
-                //许可验证通过
-                if(availability == License.Availability.AVAILABLE){
-                    msg = new Message("{}", "");
-                    String sMsg = in.readLine();
-                    System.out.println(sMsg);
-                    if(sMsg != null){
-                        msg.reset(sMsg);
+                    while(!msg.getValue("event").equals("logout")){
+                        //许可验证
+                        License.Availability availability = license.use();
 
-                        while(!msg.getValue("event").equals("logout")){
-
+                        //许可验证通过
+                        if(availability == License.Availability.AVAILABLE){
                             //转发登录消息至鉴权
                             if(msg.getValue("event").equals("login")){
                                 loginMsg.reset(sMsg);
@@ -226,6 +231,9 @@ public class MsgReceiveServer extends ServerSocket{
                                 synchronized (loginThreadLock) {
                                     loginMsg.publishToOne("login_auth","login_request");
                                 }
+
+                                //重置验证
+                                license.reset(License.LicenseType.BOTH);
                             }
 
                             //转发普通消息
@@ -233,6 +241,7 @@ public class MsgReceiveServer extends ServerSocket{
                                 pm.updateIndex(received_msg,1);
 
                                 if(queueName == null){
+                                    username = msg.getValue("username");
                                     queueName = msg.getValue("username");
                                     for (String key : allMsg.keySet()) {
                                         if (allMsg.get(key).containsKey(queueName)) {
@@ -259,33 +268,38 @@ public class MsgReceiveServer extends ServerSocket{
                                     messageLogger.log(msg.toString());
                                 }
                             }
-                            sMsg = in.readLine();
-                            msg.reset(sMsg);
-                            System.out.println(sMsg);
+                        }
+                        else{
+                            reloginMsg.setValue("username", username);
+                            reloginMsg.publishToOne("msg_send","relogin_msg");
                         }
 
-                        //转发登出消息
-                        if(msg.getValue("event").equals("logout") && user_list.contains(msg.getValue("username"))){
-                            logoutMsg.reset(sMsg);
-                            logoutMsg.publishToOne("msg_send","logout_msg");
+                        sMsg = in.readLine();
+                        msg.reset(sMsg);
+                        System.out.println(sMsg);
+                    }
 
-                            msg.setValue("target", "others");
-                            msg.setValue("event", "quit");
-                            msg.setValue("username", msg.getValue("username"));
-                            msg.publishToAll(exchangeName);
+                    //转发登出消息
+                    if(msg.getValue("event").equals("logout") && user_list.contains(msg.getValue("username"))){
+                        logoutMsg.reset(sMsg);
+                        logoutMsg.publishToOne("msg_send","logout_msg");
 
-                            synchronized (listThreadLock) {
-                                Iterator<String> it_user = user_list.iterator();
-                                while(it_user.hasNext()){
-                                    if(it_user.next().equals(msg.getValue("username"))){
-                                        it_user.remove();
-                                        break;
-                                    }
+                        msg.setValue("target", "others");
+                        msg.setValue("event", "quit");
+                        msg.setValue("username", msg.getValue("username"));
+                        msg.publishToAll(exchangeName);
+
+                        synchronized (listThreadLock) {
+                            Iterator<String> it_user = user_list.iterator();
+                            while(it_user.hasNext()){
+                                if(it_user.next().equals(msg.getValue("username"))){
+                                    it_user.remove();
+                                    break;
                                 }
                             }
-
-                            client.close();
                         }
+
+                        client.close();
                     }
                 }
             } catch (Exception e) {
@@ -297,6 +311,7 @@ public class MsgReceiveServer extends ServerSocket{
             String s = "";
             for (int i = 0; i < user_list.size()-1; i++) {
                 s += user_list.get(i)+",";
+                System.out.println(s);
             }
             s += user_list.get(user_list.size()-1);
             return s;

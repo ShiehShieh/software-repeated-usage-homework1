@@ -44,6 +44,7 @@ public class MsgSendServer extends ServerSocket {
     private HashMap<String,HashMap<String,Message>> allMsg;
 
     Consumer logoutConsumer;
+    Consumer reloginConsumer;
 
     public MsgSendServer(int SERVER_PORT, String logDirname, String zipDirname, String dbUser, String dbPwd, boolean withLog)
             throws IOException, TimeoutException, JSONException {
@@ -78,6 +79,27 @@ public class MsgSendServer extends ServerSocket {
             }
         };
         logoutChannel.basicConsume("logout_msg", true, logoutConsumer);
+
+        Channel reloginChannel = connection.createChannel();
+        reloginChannel.queueDeclare("relogin_msg", true, false, false, null);
+        reloginConsumer = new DefaultConsumer(reloginChannel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                    throws IOException {
+                String sReloginMsg = new String(body, "UTF-8");
+                try {
+                    Message reloginMsg = new Message("{}", "");
+                    reloginMsg.reset(sReloginMsg);
+                    String reloginUsername = reloginMsg.getValue("username");
+                    Socket relogClient = user2socket.get(reloginUsername);
+                    PrintWriter reloginOut = new PrintWriter(relogClient.getOutputStream(),true);
+                    reloginMsg.setValue("event","relogin");
+                    reloginOut.println(reloginMsg);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
 
         Message msg;
         HashMap<String,Message> user2msg;
