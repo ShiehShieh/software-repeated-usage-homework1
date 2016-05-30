@@ -45,6 +45,7 @@ public class MsgSendServer extends ServerSocket {
 
     Consumer logoutConsumer;
     Consumer reloginConsumer;
+    Consumer loginFailConsumer;
 
     public MsgSendServer(int SERVER_PORT, String logDirname, String zipDirname, String dbUser, String dbPwd, boolean withLog)
             throws IOException, TimeoutException, JSONException {
@@ -100,6 +101,29 @@ public class MsgSendServer extends ServerSocket {
                 }
             }
         };
+        reloginChannel.basicConsume("relogin_msg", true, reloginConsumer);
+
+        Channel loginFailChannel = connection.createChannel();
+        loginFailChannel.queueDeclare("login_fail", true, false, false, null);
+        loginFailConsumer = new DefaultConsumer(loginFailChannel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                    throws IOException {
+                String sLoginFailMsg = new String(body, "UTF-8");
+                try {
+                    Message loginFailMsg = new Message("{}", "");
+                    loginFailMsg.reset(sLoginFailMsg);
+                    String loginFailUsername = loginFailMsg.getValue("username");
+                    Socket loginFailClient = user2socket.get(loginFailUsername);
+                    PrintWriter loginFailOut = new PrintWriter(loginFailClient.getOutputStream(),true);
+                    loginFailMsg.setValue("event","relogin");
+                    loginFailOut.println(loginFailMsg);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        loginFailChannel.basicConsume("login_fail", true, loginFailConsumer);
 
         Message msg;
         HashMap<String,Message> user2msg;

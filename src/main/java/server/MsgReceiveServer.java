@@ -1,5 +1,6 @@
 package src.main.java.server;
 
+import com.rabbitmq.client.*;
 import org.json.JSONException;
 import src.main.java.DataSource.DataSource;
 import src.main.java.MessageUtils.Message;
@@ -53,6 +54,8 @@ public class MsgReceiveServer extends ServerSocket{
     public Message logoutMsg;
     public Message reloginMsg;
 
+    private Consumer loginSuccessConsumer;
+
     //在线用户集合 即登录成功用户集合
     private static List<String> user_list = new ArrayList<String>();
 
@@ -102,6 +105,30 @@ public class MsgReceiveServer extends ServerSocket{
         reloginMsg = new Message("{}", "");
         reloginMsg.init("relogin_msg","localhost");
         reloginMsg.bindTo("msg_send","relogin_msg");
+
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("localhost");
+        Connection connection = factory.newConnection();
+        Channel loginSuccessChannel = connection.createChannel();
+        loginSuccessChannel.queueDeclare("login_success", true, false, false, null);
+        loginSuccessConsumer = new DefaultConsumer(loginSuccessChannel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                    throws IOException {
+                String sLoginSuccessMsg = new String(body, "UTF-8");
+                try {
+                    Message loginSuccessMsg = new Message("{}", "");
+                    loginSuccessMsg.reset(sLoginSuccessMsg);
+                    String loginSuccessUsername = loginSuccessMsg.getValue("username");
+                    user_list.add(loginSuccessUsername);
+                    System.out.println(user_list.size());
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        loginSuccessChannel.basicConsume("login_success", true, loginSuccessConsumer);
+
     }
 
     public void run() throws IOException {
@@ -200,10 +227,6 @@ public class MsgReceiveServer extends ServerSocket{
             this.client = s;
 
             in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-
-            //测试用
-            user_list.add("wang");
-            user_list.add("yao");
 
             start();
         }
